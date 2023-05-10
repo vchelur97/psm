@@ -1,4 +1,6 @@
 from utils import download_url, unzip_file, NUM_TRAIN_SPECTRA
+from pyteomics import mzml
+from collections import defaultdict
 import pandas as pd
 
 
@@ -20,6 +22,22 @@ def create_gensim_embeddings_for_peptides():
     # Train gensim embeddings on the above data
     # Store the peptide embeddings in a file
     pass
+
+def read_mzml_file(mzml_name: str):
+    specs = {}
+    with mzml.read(mzml_name) as reader:
+        for i,spectrum in enumerate(reader):
+            print(spectrum['m/z array'])
+            scan_number = int(spectrum['params']['scans'])
+            discretized_peaks = defaultdict(float)
+            for mz,intensity in zip(spectrum['m/z array'],spectrum['intensity array']):
+                discretized_peaks[round(mz*0.995)] += intensity
+            specs[scan_number] = list(map(list,zip(*(discretized_peaks.items()))))
+
+
+
+
+
 
 
 def preprocess_data(dataset: str) -> pd.DataFrame:
@@ -52,7 +70,9 @@ def preprocess_data(dataset: str) -> pd.DataFrame:
 
 
 if __name__ == "__main__":
-    download_extract_dataset()
-    create_gensim_embeddings_for_peptides()
-    preprocess_data("train")
-    preprocess_data("test")
+    # download_extract_dataset()
+    read_mzml_file('/Users/ganeshanmalhotra/Desktop/Quarter3/cse 291/psm/data/raw/mzml/01088_A05_P010740_S00_N33_R1.mzML')
+    # download_mzml_file('MSV000083508/ccms_peak/lung/Trypsin_HCD_QExactiveplus/01088_A05_P010740_S00_N33_R1.mzML')
+    # create_gensim_embeddings_for_peptides()
+    # preprocess_data("train")
+    # preprocess_data("test")
