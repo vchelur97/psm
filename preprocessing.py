@@ -2,7 +2,7 @@ from utils import download_url, unzip_file, NUM_TRAIN_SPECTRA
 from pyteomics import mzml
 from collections import defaultdict
 import pandas as pd
-
+from tqdm import tqdm
 
 def download_extract_dataset():
     url = "http://proteomics.ucsd.edu/data/cse291_2022/lung_top20_dcf82dfcd2b8456b800d07e682d494b4.zip"
@@ -26,13 +26,16 @@ def create_gensim_embeddings_for_peptides():
 def read_mzml_file(mzml_name: str):
     specs = {}
     with mzml.read(mzml_name) as reader:
-        for i,spectrum in enumerate(reader):
-            print(spectrum['m/z array'])
-            scan_number = int(spectrum['params']['scans'])
+        for i,spectrum in tqdm(enumerate(reader)):
+            scan_number = int(spectrum['id'].split('scan=')[1])
             discretized_peaks = defaultdict(float)
+            print(len(spectrum['m/z array']))
             for mz,intensity in zip(spectrum['m/z array'],spectrum['intensity array']):
                 discretized_peaks[round(mz*0.995)] += intensity
             specs[scan_number] = list(map(list,zip(*(discretized_peaks.items()))))
+            if(i==10):
+                break
+    # print(specs)
 
 
 
