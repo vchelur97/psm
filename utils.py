@@ -3,7 +3,10 @@ import subprocess
 import zipfile
 
 
-NUM_SPECTRA = {"train": 100000, "test": 10000}
+NUM_SPECTRA = {"train": 500000, "test": 500000}
+MAX_MASS = 5000
+MASS_SHIFT = ["+0.984", "+42.011", "+15.995", "-17.027", "+43.006", "+57.021"]
+MASS_SHIFT_DICT = {k: v for k, v in zip(MASS_SHIFT, range(len(MASS_SHIFT)))}
 
 
 def download_url(dir, url):

@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 from pyteomics import mzml
 from tqdm import tqdm
-from utils import NUM_SPECTRA, download_url, unzip_file
+from utils import NUM_SPECTRA, MAX_MASS, MASS_SHIFT_DICT, download_url, unzip_file
 
 
 def download_extract_dataset(url, raw_dir, file_name):
@@ -18,15 +18,24 @@ def download_extract_dataset(url, raw_dir, file_name):
     # unzip_file(os.path.join(raw_dir, url.split("/")[-1]), file_name)
 
 
-def download_mzml_file(mzml_dir, mzml_name):
-    url = f"ftp://massive.ucsd.edu/{mzml_name}"
+def download_mzml_file(mzml_dir, mzml_location):
+    url = f"ftp://massive.ucsd.edu/{mzml_location}"
     download_url(mzml_dir, url)
 
 
-def extract_spectrums(mzml_name: str, scan_nums: list[int]):
-    specs = {}
-    lengths = []
-    X = {}
+def create_discretized_spectrum(mz_array, intensity_arr):
+    discretized_peaks = defaultdict(float)
+    for mz, intensity in zip(mz_array, intensity_arr):
+        discretized_peaks[round(mz * 0.995)] += intensity
+    max_intensity = max(discretized_peaks.values())
+    discretized = [0.0] * MAX_MASS
+    for mass, intensity in discretized_peaks.items():
+        if mass < MAX_MASS:
+            discretized[mass] = intensity / max_intensity
+    return np.array(discretized)
+
+def extract_spectrums_for_mzml(mzml_name: str, scan_nums: list[int]):
+    spectrums = {}
     with mzml.PreIndexedMzML(
         mzml_name,
         read_schema=False,
@@ -40,25 +49,77 @@ def extract_spectrums(mzml_name: str, scan_nums: list[int]):
             spectrum = reader.get_by_id(
                 f"controllerType=0 controllerNumber=1 scan={scan_num}", element_type="spectrum"
             )
-            discretized_peaks = defaultdict(float)
-            lengths.append(len(spectrum["m/z array"]))
-            for mz, intensity in zip(spectrum["m/z array"], spectrum["intensity array"]):
-                discretized_peaks[round(mz * 0.995)] += intensity
-                break
-            specs[scan_num] = list(map(list, zip(*(discretized_peaks.items()))))
-        for idx in specs.keys():
-            mz_arr, intensity_arr = specs[idx]
-            vec = [0] * 2000
-            for i in range(len(mz_arr)):
-                if mz_arr[i] < 2000:
-                    vec[mz_arr[i]] = intensity_arr[i]
-            max_intensity = max(intensity_arr)
-            vec = [x / max_intensity for x in vec]
-            X[idx] = np.array(vec)
-    return X
+            spectrums[scan_num] = create_discretized_spectrum(spectrum["m/z array"], spectrum["intensity array"])
+    return spectrums
 
-    # print(specs)
 
+def preprocess_mzmls(mzml_dir, spectrum_info_path, tsv_file, nrows):
+    df = pd.read_csv(tsv_file, sep="\t", nrows=nrows)
+    for mzml_file_location in df["OriginalFilepath"].unique():
+        download_mzml_file(mzml_dir, mzml_file_location)
+
+    spectrum_info = defaultdict(dict)
+    for mzml_file_location, scan_nums in (
+        df.groupby("OriginalFilepath")["ScanNum"].unique().apply(list).to_dict().items()
+    ):
+        mzml_file_name = mzml_file_location.split("/")[-1]
+        scan_nums = [int(a) for a in scan_nums]
+        spectrums = extract_spectrums_for_mzml(os.path.join(mzml_dir, mzml_file_name), scan_nums)
+        spectrum_info[mzml_file_name] = spectrums
+
+    with open(spectrum_info_path, "wb") as f:
+        pickle.dump(spectrum_info, f)
+
+
+def extract_meta_info(meta_info_path, tsv_file, nrows):
+    df = pd.read_csv(tsv_file, sep="\t", nrows=nrows)
+    df = df[df["Protein"].str.startswith("XXX_sp") | df["Protein"].str.startswith("sp")]
+    meta_info = defaultdict(dict)
+    for mzml_file_location, scan_nums in (
+        df.groupby("OriginalFilepath")["ScanNum"].unique().apply(list).to_dict().items()
+    ):
+        mzml_file_name = mzml_file_location.split("/")[-1]
+        meta_info[mzml_file_name] = {}
+        for scan_num in scan_nums:
+            scan_df = df[df["ScanNum"] == scan_num]
+            scan_df = scan_df[
+                [
+                    "Charge",
+                    "Peptide",
+                    "Protein",
+                    "DeNovoScore",
+                    "MSGFScore",
+                    "SpecEValue",
+                    "EValue",
+                ]
+            ]
+            scan_df["label"] = False
+            scan_df["label"].iloc[0] = True
+            scan_df = pd.concat([scan_df.iloc[0], scan_df.iloc[5:14]])
+            meta_info[mzml_file_name][scan_num] = scan_df
+
+    with open(meta_info_path, "wb") as f:
+        pickle.dump(meta_info, f)
+
+
+def generate_theospec_for_peptide(peptide):
+    for key, val in MASS_SHIFT_DICT.items():
+        peptide = peptide.replace(key, str(val))
+    # Gen theospec
+
+
+def generate_theospec(theospec_path, meta_info_path):
+    meta_info = pickle.load(open(meta_info_path, "rb"))
+    theospec = {}
+    for mzml_file_name, scan_info in meta_info.items():
+        for scan_num, scan_df in scan_info.items():
+            for peptide in scan_df["Peptide"]:
+                if peptide in theospec:
+                    continue
+                theospec[peptide] = generate_theospec_for_peptide(peptide)
+
+    with open(theospec_path, "wb") as f:
+        pickle.dump(theospec, f)
 
 def preprocess_data(type: str):
     if type == "train":
@@ -71,73 +132,30 @@ def preprocess_data(type: str):
         dataset_url = "https://www.dropbox.com/s/enjuvpe3enuz7hk/test.tsv?dl=1"
     raw_dir = os.path.join(data_dir, "raw")
     mzml_dir = os.path.join(raw_dir, "mzml")
+    nrows = NUM_SPECTRA[type]
     if hparams.on_sample:
         tsv_file = os.path.join(hparams.sample_dir, "abc.tsv")
     else:
         tsv_file = os.path.join(raw_dir, f"{type}.tsv")
 
-    download_extract_dataset(dataset_url, raw_dir, tsv_file)
-    df = pd.read_csv(tsv_file, sep="\t", nrows=NUM_SPECTRA[type])
-    for mzml_file_name in tqdm(df["OriginalFilepath"].unique()):
-        download_mzml_file(mzml_dir, mzml_file_name)
+    spectrum_info_path = os.path.join(data_dir, "spectrum.pkl")
+    if not os.path.exists(spectrum_info_path):
+        download_extract_dataset(dataset_url, raw_dir, tsv_file)
+        preprocess_mzmls(mzml_dir, spectrum_info_path, tsv_file, nrows)
 
-    data_dict = defaultdict(dict)
-    for mzml_file_name, scan_nums in tqdm(
-        df.groupby("OriginalFilepath")["ScanNum"].unique().apply(list).to_dict()
-    ):
-        spectrums = extract_spectrums(os.path.join(mzml_dir, mzml_file_name), scan_nums)
-        final_indices = []
-        lengths = []
-        final_df = pd.DataFrame()
-        for scan_num in scan_nums:
-            temp_df = df[df["ScanNum"] == scan_num]
-            peptides = temp_df.loc[:, "Peptide"].tolist()
-            proteins = temp_df.loc[:, "Protein"].tolist()
-            peptide_dict = {k: v for k, v in enumerate(peptides)}
-            # Considering the first match as the True Positive always
-            protein_dict = {
-                k: v for k, v in enumerate(proteins) if v[:5] != "XXX_t" and v[0] != "t"
-            }
-            peptide_dict = {k: peptide_dict[k] for k in protein_dict.keys()}
-            temp_peptide_dict = {v: k for k, v in peptide_dict.items()}
-            final_peptide_dict = {v: k for k, v in temp_peptide_dict.items()}
-            filtered_indices = list(final_peptide_dict.keys())
-            filtered_indices = filtered_indices[0:1] + filtered_indices[5:14]
-            filtered_indices = [a + sum(lengths) for a in filtered_indices]
-            lengths.append(len(peptide_dict))
-            final_indices.extend(filtered_indices)
-            final_df = df.loc[final_indices, :]
-            final_df = final_df[
-                [
-                    "ScanNum",
-                    "Charge",
-                    "Peptide",
-                    "Protein",
-                    "DeNovoScore",
-                    "MSGFScore",
-                    "SpecEValue",
-                    "EValue",
-                    "OriginalFilepath",
-                ]
-            ]
+    meta_info_path = os.path.join(data_dir, "meta.pkl")
+    if not os.path.exists(meta_info_path):
+        extract_meta_info(meta_info_path, tsv_file, nrows)
 
-        scan_nums = final_df["ScanNum"]
-        scan2vec = {}
-        for scan_num in scan_nums:
-            scan2vec[scan_num] = spectrums[scan_num]
-        data_dict[mzml_file_name] = scan2vec
-
-    spectrum_file_path = os.path.join(data_dir, "spectrum.pkl")
-    if not os.path.exists(os.path.dirname(spectrum_file_path)):
-        os.makedirs(os.path.dirname(spectrum_file_path))
-    with open(spectrum_file_path, "wb") as f:
-        pickle.dump(data_dict, f)
+    theospec_path = os.path.join(data_dir, "theospec.pkl")
+    if not os.path.exists(theospec_path):
+        generate_theospec(theospec_path, meta_info_path)
 
 
 parser = ArgumentParser(description="Peptide Spectrum Matching Preprocessing", add_help=True)
 parser.add_argument(
     "--data-dir",
-    default="data/",
+    default="./data/",
     type=str,
     help="Location of data directory. Default: %(default)s",
 )
