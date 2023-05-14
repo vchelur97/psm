@@ -5,16 +5,14 @@ from collections import defaultdict
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-
-from lightning.pytorch.utilities.functions import move_data_to_device
-from scipy.ndimage.filters import gaussian_filter1d
-from sklearn.metrics._plot.precision_recall_curve import PrecisionRecallDisplay
-from torchmetrics.functional.classification.auc import auc
-from tqdm import tqdm
-
 from datasets import PSMDataModule
+from lightning.pytorch.utilities import move_data_to_device
 from metrics import batch_work, confusion_matrix_figure
 from net import Net
+from scipy.ndimage.filters import gaussian_filter1d
+from sklearn.metrics._plot.precision_recall_curve import PrecisionRecallDisplay
+from torchmetrics.utilities.compute import auc
+from tqdm import tqdm
 
 colours = [
     "tab:blue",
@@ -79,12 +77,12 @@ def pr_figure(precisions, recalls, areas, labels=None):
         display.plot(ax=ax, name="%s (area = %0.2f)" % (label, areas[i]), color=colour)
 
     # add the legend for the iso-f1 curves
-    handles, f_labels = display.ax_.get_legend_handles_labels()
-    handles.extend([l])
+    handles, f_labels = display.ax_.get_legend_handles_labels()  # type: ignore
+    handles.extend([l])    # type: ignore
     f_labels.extend(["Iso-F1 curves"])
     # set the legend and the axes
-    ax.set_xlim([0.0, 1.0])
-    ax.set_ylim([0.0, 1.05])
+    ax.set_xlim(0.0, 1.0)
+    ax.set_ylim(0.0, 1.05)
     ax.legend(handles=handles, labels=f_labels, loc="best")
     ax.set_title("Precision-Recall Curve")
     return figure
@@ -202,7 +200,7 @@ def print_metrics(metric):
     print("-------------------------")
     for k, v in metric.items():
         if type(v) == list:
-            print(k + ":" + str((sum(v) / len(v)).item()))
+            print(k + ":" + str((sum(v) / len(v))))
         else:
             print(k + ": " + str(v.item()))
     print("-------------------------")

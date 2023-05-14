@@ -3,25 +3,24 @@ from collections import OrderedDict
 
 import lightning.pytorch as pl
 import torch
+from psm.metrics import batch_work, make_figure, weighted_bce_loss, weighted_focal_loss
+from psm.models import PSMModel
 from torch.optim import Adam
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torchmetrics import (
-    F1,
     ROC,
     Accuracy,
     ConfusionMatrix,
-    IoU,
-    MatthewsCorrcoef,
+    F1Score,
+    JaccardIndex,
+    MatthewsCorrCoef,
     MetricCollection,
     Precision,
     PrecisionRecallCurve,
     Recall,
 )
-from torchmetrics.functional import auc
+from torchmetrics.utilities.compute import auc
 from utils import NUM_TRAIN_SPECTRA
-
-from psm.metrics import batch_work, make_figure, weighted_bce_loss, weighted_focal_loss
-from psm.models import PSMModel
 
 SMOOTH = 1e-6
 
@@ -37,12 +36,12 @@ class Net(pl.LightningModule):
 
         metrics = MetricCollection(
             [
-                MatthewsCorrcoef(2, threshold=hparams.threshold),
-                Accuracy(threshold=hparams.threshold),
-                F1(threshold=hparams.threshold),
-                IoU(2, threshold=hparams.threshold),
-                Precision(threshold=hparams.threshold),
-                Recall(threshold=hparams.threshold),
+                MatthewsCorrCoef("binary", threshold=hparams.threshold),
+                Accuracy("binary", threshold=hparams.threshold),
+                F1Score("binary", threshold=hparams.threshold),
+                JaccardIndex("binary", threshold=hparams.threshold),
+                Precision("binary", threshold=hparams.threshold),
+                Recall("binary", threshold=hparams.threshold),
             ]
         )
         self.valid_metrics = metrics.clone(prefix="v_")
@@ -50,9 +49,9 @@ class Net(pl.LightningModule):
 
         figure_metrics = MetricCollection(
             [
-                ConfusionMatrix(2, threshold=hparams.threshold),
-                ROC(),
-                PrecisionRecallCurve(),
+                ConfusionMatrix("binary", threshold=hparams.threshold),
+                ROC("binary"),
+                PrecisionRecallCurve("binary"),
             ]
         )
         self.valid_figure_metrics = figure_metrics.clone(prefix="v_")
@@ -81,10 +80,10 @@ class Net(pl.LightningModule):
     #             )
 
     def configure_optimizers(self):
-        optimizer = Adam(self.parameters(), lr=self.hparams.lr)
+        optimizer = Adam(self.parameters(), lr=self.hparams.lr)  # type: ignore
         scheduler = {
             "scheduler": ReduceLROnPlateau(optimizer, mode="max", patience=4, verbose=True),
-            "monitor": "v_MatthewsCorrcoef",  # TODO: Change monitor
+            "monitor": "v_MatthewsCorrCoef",  # TODO: Change monitor
         }
         return [optimizer], [scheduler]
 
@@ -93,11 +92,11 @@ class Net(pl.LightningModule):
         self, curr_epoch, batch_idx, optim, opt_idx, optimizer_closure, *args, **kwargs
     ):
         # warm up lr
-        warm_up_steps = float((NUM_TRAIN_SPECTRA * 20) // self.hparams.batch_size)
+        warm_up_steps = float((NUM_TRAIN_SPECTRA * 20) // self.hparams.batch_size)  # type: ignore
         if self.trainer.global_step < warm_up_steps:
             lr_scale = min(1.0, float(self.trainer.global_step + 1) / warm_up_steps)
             for pg in optim.param_groups:
-                pg["lr"] = lr_scale * self.hparams.lr
+                pg["lr"] = lr_scale * self.hparams.lr  # type: ignore
 
         optim.step(closure=optimizer_closure)
 
@@ -106,7 +105,7 @@ class Net(pl.LightningModule):
         y_pred = self(data["feature"], meta["length"])
         # TODO: Not sure if batch_work is needed
         y_pred, y_true = batch_work(y_pred, data["label"], meta["length"])
-        return self.loss_func(y_pred, y_true, pos_weight=self.hparams.pos_weight)
+        return self.loss_func(y_pred, y_true, pos_weight=[1.0])
 
     def val_test_step(self, batch, calc_metrics, calc_figure_metrics):
         data, meta = batch
@@ -142,7 +141,7 @@ class Net(pl.LightningModule):
         figure_metrics.update(calc_figure_metrics.compute())
         calc_figure_metrics.reset()
         for key, val in figure_metrics.items():
-            self.logger.experiment.add_figure(key, make_figure(key, val), self.current_epoch)
+            self.logger.experiment.add_figure(key, make_figure(key, val), self.current_epoch)  # type: ignore
             if key[2:] == "ROC":
                 self.try_log("v_auroc", auc(val[0], val[1], reorder=True), len(outputs))
             if key[2:] == "PrecisionRecallCurve":
@@ -169,7 +168,6 @@ class Net(pl.LightningModule):
 
     @staticmethod
     def add_class_specific_args(parser):
-        parser = PSMModel.add_class_specific_args(parser)
         parser.add_argument(
             "--lr",
             default=0.01,

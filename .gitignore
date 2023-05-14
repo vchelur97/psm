@@ -1,5 +1,5 @@
 .vscode
-data
+data/*
+!data/sample/
 ff
-abc.tsv
 __pycache__

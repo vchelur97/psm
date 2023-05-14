@@ -3,9 +3,10 @@ import itertools
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
+from matplotlib.cm import get_cmap
 from sklearn.metrics import PrecisionRecallDisplay
 from torch.nn.functional import binary_cross_entropy_with_logits
-from torchmetrics.functional import auc
+from torchmetrics.utilities.compute import auc
 
 SMOOTH = 1e-6
 plt.rcParams.update({"font.size": 18})
@@ -21,7 +22,7 @@ def confusion_matrix_figure(cm, class_names):
     cm = cm.astype("int")
     figure = plt.figure(figsize=(8, 8))
     # Normalize the confusion matrix.
-    cmap = plt.cm.viridis
+    cmap = get_cmap("viridis")
     normalized = np.around(cm.astype("float") / cm.sum(axis=1)[:, np.newaxis], decimals=2)
     plt.imshow(normalized, interpolation="nearest", cmap=cmap)
     plt.title("Confusion matrix")
@@ -73,10 +74,11 @@ def pr_figure(precision, recall, area):
 
     f_scores = np.linspace(0.2, 0.8, num=4)
     _, labels = [], []
+    line = None
     for f_score in f_scores:
         x = np.linspace(0.01, 1)
         y = f_score * x / (2 * x - f_score)
-        (l,) = plt.plot(x[y >= 0], y[y >= 0], color="gray", alpha=0.2)
+        (line,) = plt.plot(x[y >= 0], y[y >= 0], color="gray", alpha=0.2)
         plt.annotate("f1={0:0.1f}".format(f_score), xy=(0.9, y[45] + 0.02))
 
     display = PrecisionRecallDisplay(recall=recall, precision=precision)
@@ -84,11 +86,11 @@ def pr_figure(precision, recall, area):
 
     # add the legend for the iso-f1 curves
     handles, labels = display.ax_.get_legend_handles_labels()
-    handles.extend([l])
+    handles.extend([line])
     labels.extend(["Iso-F1 curves"])
     # set the legend and the axes
-    ax.set_xlim([0.0, 1.0])
-    ax.set_ylim([0.0, 1.05])
+    ax.set_xlim(0.0, 1.0)
+    ax.set_ylim(0.0, 1.05)
     ax.legend(handles=handles, labels=labels, loc="best")
     ax.set_title("Precision-Recall curve")
 

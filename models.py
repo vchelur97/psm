@@ -9,3 +9,7 @@ class PSMModel(torch.nn.Module):
 
     def forward(self, x):
         pass
+
+    @staticmethod
+    def add_class_specific_args(parser):
+        return parser

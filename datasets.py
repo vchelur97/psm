@@ -4,9 +4,8 @@ import os
 from collections import defaultdict
 from glob import glob
 
+import lightning.pytorch as pl
 import numpy as np
-import pytorch_lightning as pl
-from torch import from_numpy
 from torch.utils.data import DataLoader, Dataset, Subset
 
 AMINO_ACIDS = "XACDEFGHIKLMNPQRSTVWY"
@@ -112,11 +111,7 @@ class MSV000083508(Dataset):
             print("Loading", name, "of test set")
         else:
             print("Loading", name, "of train set")
-        tmp = glob(os.path.join(self.preprocessed_dir, "*", name + "_?.npy"))
-        if tmp == []:
-            tmp = glob(os.path.join(self.msa_dir, "*", name + "_?.npy"))
-        if tmp == []:
-            tmp = glob(os.path.join(self.raw_dir, "*", name + "_?.npy"))
+        tmp = glob(os.path.join(self.raw_dir, "*", name + "_?.npy"))
         tmp = sorted(tmp)
         for file in tmp:
             pis, chain = file.split("/")[-2:]
@@ -147,7 +142,7 @@ class MSV000083508(Dataset):
     def add_class_specific_args(parser):
         parser.add_argument(
             "--data-dir",
-            default="../data/",
+            default="data/",
             type=str,
             help="Location of data directory. Default: %(default)s",
         )

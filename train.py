@@ -2,6 +2,8 @@ import os
 from argparse import ArgumentParser, Namespace
 
 import lightning.pytorch as pl
+from lightning.pytorch.loggers import TensorBoardLogger
+from lightning.pytorch.callbacks import ModelSummary, ModelCheckpoint, RichProgressBar, StochasticWeightAveraging
 
 from datasets import PSMDataModule, MSV000083508
 from models import PSMModel
@@ -10,20 +12,20 @@ from net import Net
 
 def main(hparams):
     pl.seed_everything(hparams.seed)
-    logger = pl.loggers.TensorBoardLogger(save_dir=hparams.weights_save_path, name=hparams.exp_name)
+    logger = TensorBoardLogger(save_dir=hparams.weights_save_path, name=hparams.exp_name)
     callbacks = [
-        pl.callbacks.ModelSummary(),
-        pl.callbacks.ModelCheckpoint(
-            monitor="v_MatthewsCorrcoef",
+        ModelSummary(),
+        ModelCheckpoint(
+            monitor="v_MatthewsCorrCoef",
             verbose=True,
             save_top_k=3,
             mode="max",
-            filename="{epoch:d}-{v_MatthewsCorrcoef:.3f}-{v_Accuracy:.3f}-{v_F1:.3f}",
+            filename="{epoch:d}-{v_MatthewsCorrCoef:.3f}-{v_Accuracy:.3f}-{v_F1Score:.3f}",
         ),
-        pl.callbacks.StochasticWeightAveraging(),
+        StochasticWeightAveraging(hparams.lr),
     ]
     if hparams.enable_progress_bar:
-        callbacks.append(pl.callbacks.RichProgressBar(refresh_rate_per_second=2))
+        callbacks.append(RichProgressBar(refresh_rate=2))
     const_params = {
         "max_epochs": hparams.net_epochs,
         "row_log_interval": 2,
@@ -33,8 +35,8 @@ def main(hparams):
     print(hparams)
 
     datamodule = PSMDataModule(hparams)
-    trainer = pl.Trainer.from_argparse_args(
-        hparams,
+    trainer = pl.Trainer(
+        **vars(hparams),
         logger=logger,
         callbacks=callbacks,
         val_check_interval=0.5,
