@@ -10,9 +10,23 @@ def download_extract_dataset():
     unzip_file("raw", url.split("/")[-1])
 
 
-def download_mzml_file(mzml_name: str):
+def download_mzml_file(mzml_name):
     url = f"ftp://massive.ucsd.edu/{mzml_name}"
     download_url("raw/mzml", url)
+
+    file_path = "./data/raw/mzml/" + mzml_name
+    reader = mzml.read(file_path)
+
+    # Iterate over the spectra in the file
+    for spectrum in reader:
+        # Get the m/z and intensity arrays
+        mz_array = np.array(spectrum["m/z array"])
+        intensity_array = np.array(spectrum["intensity array"])
+
+        # Process the data as needed
+        # For example, you can print the m/z and intensity values
+        # print("m/z values:", mz_array)
+        # print("Intensity values:", intensity_array)
 
 
 def create_gensim_embeddings_for_peptides():
