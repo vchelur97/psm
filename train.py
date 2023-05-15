@@ -103,7 +103,7 @@ def parse_arguments():
     trainer_group.add_argument(
         "--epochs",
         metavar="EPOCHS",
-        default=30,
+        default=35,
         type=int,
         help="Number of epochs. Default: %(default)d",
     )
@@ -116,7 +116,7 @@ def parse_arguments():
     trainer_group.add_argument(
         "--accumulate-grad-batches",
         metavar="SIZE",
-        default=1,
+        default=8,
         type=int,
         help="Default: %(default)d",
     )
@@ -127,7 +127,7 @@ def parse_arguments():
         help="Run tests on model. Default: %(default)s",
     )
     trainer_group.add_argument("--no-test", dest="run_tests", action="store_false")
-    trainer_group.set_defaults(run_tests=False)
+    trainer_group.set_defaults(run_tests=True)
     trainer_group.add_argument(
         "--ckpt-path",
         metavar="PATH",

@@ -82,7 +82,7 @@ class Net(pl.LightningModule):
     def configure_optimizers(self):
         optimizer = Adam(self.parameters(), lr=self.hparams.lr)  # type: ignore
         scheduler = {
-            "scheduler": ReduceLROnPlateau(optimizer, mode="max", patience=4, verbose=True),
+            "scheduler": ReduceLROnPlateau(optimizer, mode="max", patience=3, verbose=True),
             "monitor": "v_BinaryMatthewsCorrCoef",  # TODO: Change monitor
         }
         return [optimizer], [scheduler]
