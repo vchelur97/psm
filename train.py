@@ -12,6 +12,7 @@ from lightning.pytorch.callbacks import (
 
 from datasets import PSMDataModule, MSV000083508
 from models import PSMModel
+from utils import is_notebook
 from net import Net
 
 
@@ -48,19 +49,20 @@ def main(hparams):
         val_check_interval=0.5,
         precision="16-mixed",
         enable_progress_bar=hparams.enable_progress_bar,
-        profiler="simple",
+        # profiler="simple",
         accumulate_grad_batches=hparams.accumulate_grad_batches,
         # deterministic=True,
         # track_grad_norm=2,
         # fast_dev_run=True,
         # overfit_batches=0.02,  # For fast training sanity check on 2% of data
+        # limit_test_batches=0.02,  # For fast testing sanity check on 2% of data
     )
     net = Net(hparams, datamodule.input_size)
 
     trainer.fit(net, ckpt_path=hparams.ckpt_path, datamodule=datamodule)
 
     if hparams.run_tests:
-        trainer.test(ckpt_path="best")
+        trainer.test(ckpt_path="best", datamodule=datamodule)
 
 
 def parse_arguments():
@@ -76,7 +78,7 @@ def parse_arguments():
         default="cpu",
         choices=["gpu", "cpu", "tpu"],
         type=str,
-        help="Accelerator to use Default: %(default)d",
+        help="Accelerator to use Default: %(default)s",
     )
     trainer_group.add_argument(
         "--batch-size",
@@ -101,7 +103,7 @@ def parse_arguments():
     trainer_group.add_argument(
         "--epochs",
         metavar="EPOCHS",
-        default=100,
+        default=30,
         type=int,
         help="Number of epochs. Default: %(default)d",
     )
@@ -151,7 +153,10 @@ def parse_arguments():
     model_group = PSMModel.add_class_specific_args(model_group)
 
     # Parse as hyperparameters
-    hparams = parser.parse_args(args=[])
+    args = None
+    if is_notebook():
+        args = []
+    hparams = parser.parse_args(args)
     hparams.weights_save_path = os.path.abspath(os.path.expanduser(hparams.weights_save_path))
     hparams.data_dir = os.path.abspath(os.path.expanduser(hparams.data_dir))
     return hparams
