@@ -3,6 +3,7 @@ import subprocess
 import numpy as np
 from collections import defaultdict
 import zipfile
+import pickle
 
 
 NUM_SPECTRA = {"train": 500000, "test": 500000}
@@ -42,3 +43,9 @@ def unzip_file(zip_file: str, unzipped_file: str) -> None:
     with zipfile.ZipFile(f"{zip_file}", "r") as zip_ref:
         # Extract all files to the "data" directory
         zip_ref.extractall(f"{unzipped_file}")
+
+
+def load_pickle(file_path: str) -> dict:
+    with open(file_path, "rb") as f:
+        data = pickle.load(f)
+    return data

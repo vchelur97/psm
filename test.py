@@ -7,7 +7,7 @@ import numpy as np
 import torch
 from datasets import PSMDataModule
 from lightning.pytorch.utilities import move_data_to_device
-from metrics import batch_work, confusion_matrix_figure
+from metrics import confusion_matrix_figure
 from net import Net
 from scipy.ndimage.filters import gaussian_filter1d
 from sklearn.metrics._plot.precision_recall_curve import PrecisionRecallDisplay
@@ -119,21 +119,15 @@ def make_figure(key, values, labels=None):
 
 def validate(net, datamodule):
     print("Running model " + datamodule.train_ds.fold + " on its validation set")
-    dcc = []
-    for idx, batch in tqdm(enumerate(datamodule.val_dataloader())):
-        batch = move_data_to_device(batch, net.device)
-        dcc += move_data_to_device(net.validation_step(batch, idx)["f_v_dcc"], "cpu")
     metrics = move_data_to_device(net.valid_metrics.compute(), "cpu")
-
     figure_metrics = move_data_to_device(net.valid_figure_metrics.compute(), "cpu")
-    figure_metrics["v_dcc"] = dcc
     return metrics, figure_metrics
 
 
 def predict(nets, data, meta):
     y_preds = []
     for i, net in enumerate(nets):
-        y_pred = torch.sigmoid(net(data["feature"], meta["length"]))
+        y_pred = torch.sigmoid(net(data["feature"]))
         y_preds.append(y_pred)
     return torch.stack(y_preds).sum(dim=0) / len(nets)
 
@@ -144,10 +138,10 @@ def test(nets, datamodule):
     device = nets[0].device
     for idx, batch in tqdm(enumerate(test_dl)):
         data, meta = move_data_to_device(batch, device)
-        y_pred = predict(nets, data, meta)
-        y_pred, y_true = batch_work(y_pred, data["label"], meta["length"])
-        nets[0].test_metrics.update(y_pred, y_true.int())
-        nets[0].test_figure_metrics.update(y_pred, y_true.int())
+        y_preds = predict(nets, data, meta)
+        y_trues = data["label"]
+        nets[0].test_metrics.update(y_preds, y_trues.int())
+        nets[0].test_figure_metrics.update(y_preds, y_trues.int())
     metrics = move_data_to_device(nets[0].test_metrics.compute(), "cpu")
     figure_metrics = move_data_to_device(nets[0].test_figure_metrics.compute(), "cpu")
     return [metrics], [figure_metrics]
@@ -182,13 +176,10 @@ def load_nets_frozen(hparams, validate_one=False):
         net = Net.load_from_checkpoint(
             ckpt,
             data_dir=hparams.data_dir,
-            gpus=hparams.gpus,
             run_tests=(not hparams.validate and test),
             load_train_ds=hparams.validate,
-            input_size=47,  # TODO: Change input size
+            input_size=10000,
         )
-        if hparams.gpus != 0:
-            net = net.cuda()
         nets.append(net)
         nets[i].freeze()
         nets[i].eval()
@@ -257,12 +248,6 @@ def parse_arguments():
         default="../data",
         type=str,
         help="Location of data directory. Default: %(default)s",
-    )
-    parser.add_argument(
-        "--gpus",
-        default=1,
-        type=int,
-        help="Number of gpus to use for computation. Default: %(default)d",
     )
     parser.add_argument(
         "--validate",

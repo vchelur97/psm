@@ -3,13 +3,12 @@
 import os
 from collections import defaultdict
 from glob import glob
+from utils import load_pickle, create_discretized_spectrum
+from sklearn.model_selection import StratifiedKFold
 
 import lightning.pytorch as pl
 import numpy as np
 from torch.utils.data import DataLoader, Dataset, Subset
-
-AMINO_ACIDS = "XACDEFGHIKLMNPQRSTVWY"
-AA_DICT = defaultdict(lambda: 0, {aa: idx for idx, aa in enumerate(AMINO_ACIDS)})
 
 
 class PSMDataModule(pl.LightningDataModule):
@@ -17,10 +16,7 @@ class PSMDataModule(pl.LightningDataModule):
         super().__init__()
         self.num_cpus = hparams.num_cpus
         self.batch_size = hparams.batch_size
-        if hparams.gpus != 0:
-            self.pin_memory = True
-        else:
-            self.pin_memory = False
+        self.fold = hparams.fold
         self.input_size = None
         if hparams.load_train_ds:
             self.train_ds = MSV000083508(hparams)
@@ -33,21 +29,17 @@ class PSMDataModule(pl.LightningDataModule):
 
     def train_dataloader(self):
         return DataLoader(
-            Subset(self.train_ds, self.train_ds.train_indices),
+            Subset(self.train_ds, self.train_ds.train_indices[self.fold]),
             batch_size=self.batch_size,
-            collate_fn=MSV000083508.collate_fn,
             num_workers=self.num_cpus,
-            pin_memory=self.pin_memory,
             shuffle=True,
         )
 
     def val_dataloader(self):
         return DataLoader(
-            Subset(self.train_ds, self.train_ds.valid_indices),
+            Subset(self.train_ds, self.train_ds.valid_indices[self.fold]),
             batch_size=self.batch_size,
-            collate_fn=MSV000083508.collate_fn,
             num_workers=self.num_cpus,
-            pin_memory=self.pin_memory,
             shuffle=False,
         )
 
@@ -55,9 +47,7 @@ class PSMDataModule(pl.LightningDataModule):
         return DataLoader(
             self.test_ds,
             batch_size=self.batch_size,
-            collate_fn=MSV000083508.collate_fn,
             num_workers=self.num_cpus,
-            pin_memory=self.pin_memory,
             shuffle=False,
         )
 
@@ -65,7 +55,7 @@ class PSMDataModule(pl.LightningDataModule):
     def add_class_specific_args(parser):
         parser.add_argument(
             "--num-cpus",
-            default=10,
+            default=8,
             type=int,
             help="Number of CPUs for dataloader. Default: %(default)f",
         )
@@ -89,54 +79,50 @@ class MSV000083508(Dataset):
         else:
             self.dataset_dir = os.path.join(hparams.data_dir, "train")
             self.fold = str(hparams.fold)
-        self.raw_dir = os.path.join(self.dataset_dir, "raw")
 
-        # TODO: Load features and labels here
-
-        # ------------MAPPINGS------------
-        # TODO: If there are any mappings to be done, do them here
+        self.meta_info = load_pickle(os.path.join(self.dataset_dir, "meta.pkl"))
+        self.spectrum_info = load_pickle(os.path.join(self.dataset_dir, "spectrum.pkl"))
+        self.theospec_info = load_pickle(os.path.join(self.dataset_dir, "theospec.pkl"))
+        self.dataset = [
+            [mzml, scan_num, idx, psm[0], psm[1]["Label"]]
+            for mzml in self.meta_info
+            for scan_num in self.meta_info[mzml]
+            for idx, psm in enumerate(self.meta_info[mzml][scan_num].iterrows())
+        ]
 
         # Folds for cross-validation
-        self.train_fold, self.valid_fold = self.get_fold()
+        if not test:
+            self.train_indices = []
+            self.valid_indices = []
+            for i, j in StratifiedKFold(
+                n_splits=5, shuffle=True, random_state=hparams.seed
+            ).split(
+                self.dataset, [x[-1] for x in self.dataset]  # type: ignore
+            ):
+                self.train_indices.append(i)
+                self.valid_indices.append(j)
 
-        # TODO: Get input size properly based on the data
-        self.input_size = self[0][0]["feature"].shape[0]
-
-    def get_npy(self, name, flag=True):
-        # TODO: Might have to change this function based on how we store the data
-        if not flag:
-            return None
-        mapping = {}
-        if self.test:
-            print("Loading", name, "of test set")
-        else:
-            print("Loading", name, "of train set")
-        tmp = glob(os.path.join(self.raw_dir, "*", name + "_?.npy"))
-        tmp = sorted(tmp)
-        for file in tmp:
-            pis, chain = file.split("/")[-2:]
-            chain = chain[-5:-4]
-            mapping[pis + "/" + chain] = np.load(file).astype(np.float32)
-        return mapping
-
-    def get_fold(self):
-        # TODO: Create cross-validation folds here
-        return [], []
+        self.input_size = self[0]["feature"].shape[0]
 
     def __getitem__(self, index):
-        # TODO: Return a single sample data from the dataset
-        # In this case, keep it as 2 dictionaries, first one has data with 2 keys,
-        # feature and label, second dict has meta information which may be used
-        return {}, {}
+        mzml, scan_num, idx, _, label = self.dataset[index]
+        meta_info = self.meta_info[mzml][scan_num].iloc[idx]
+        discretized_spec = create_discretized_spectrum(
+            self.spectrum_info[mzml][scan_num]["mz_arr"],
+            self.spectrum_info[mzml][scan_num]["intensity_arr"],
+        )
+        discretized_theospec = create_discretized_spectrum(
+            self.theospec_info[meta_info["Peptide"]]["mz_arr"],
+            self.theospec_info[meta_info["Peptide"]]["intensity_arr"],
+        )
+        data = {
+            "feature": np.array(discretized_spec + discretized_theospec).astype(np.float32),
+            "label": label,
+        }
+        return data
 
     def __len__(self):
         return len(self.dataset)
-
-    @staticmethod
-    # A collate function to merge samples into a minibatch, will be used by DataLoader
-    def collate_fn(samples):
-        # TODO
-        pass
 
     @staticmethod
     def add_class_specific_args(parser):

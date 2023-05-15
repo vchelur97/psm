@@ -110,7 +110,7 @@ def make_figure(key, values):
         return plt.figure(figsize=(8, 8))
 
 
-def weighted_focal_loss(y_pred, y_true, gamma=2.0, pos_weight=[1], **kwargs):
+def weighted_focal_loss(y_pred, y_true, gamma=2.0, pos_weight=[9], **kwargs):
     pos_weight = torch.Tensor(pos_weight).to(y_true.device)
     y_pred = torch.clamp(torch.sigmoid(y_pred), SMOOTH, 1.0 - SMOOTH)
     loss = -(pos_weight * y_true * torch.pow(1.0 - y_pred, gamma) * torch.log(y_pred)) - (
@@ -119,18 +119,6 @@ def weighted_focal_loss(y_pred, y_true, gamma=2.0, pos_weight=[1], **kwargs):
     return torch.mean(loss)
 
 
-def weighted_bce_loss(y_pred, y_true, pos_weight, **kwargs):
-    if pos_weight is None:
-        pos_weight = y_true.sum()
-        pos_weight = [(len(y_true) - pos_weight) / pos_weight]
+def weighted_bce_loss(y_pred, y_true, pos_weight=[9], **kwargs):
     pos_weight = torch.Tensor(pos_weight).to(y_true.device)
     return binary_cross_entropy_with_logits(y_pred, y_true, pos_weight=pos_weight, reduction="mean")
-
-
-def batch_work(y_preds, y_trues, lengths):
-    batch_size = len(lengths)
-    indices = []
-    for i in range(batch_size):
-        indices += [i * lengths[0] + el for el in range(lengths[i])]
-    indices = torch.tensor(indices).to(y_trues.device)
-    return y_preds.take(indices), y_trues.take(indices)

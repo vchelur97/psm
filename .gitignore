@@ -3,3 +3,4 @@ data/*
 !data/sample/
 ff
 __pycache__
+logs

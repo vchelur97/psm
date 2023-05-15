@@ -3,8 +3,8 @@ from collections import OrderedDict
 
 import lightning.pytorch as pl
 import torch
-from psm.metrics import batch_work, make_figure, weighted_bce_loss, weighted_focal_loss
-from psm.models import PSMModel
+from metrics import make_figure, weighted_bce_loss, weighted_focal_loss
+from models import PSMModel
 from torch.optim import Adam
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torchmetrics import (
@@ -20,7 +20,6 @@ from torchmetrics import (
     Recall,
 )
 from torchmetrics.utilities.compute import auc
-from utils import NUM_TRAIN_SPECTRA
 
 SMOOTH = 1e-6
 
@@ -57,15 +56,16 @@ class Net(pl.LightningModule):
         self.valid_figure_metrics = figure_metrics.clone(prefix="v_")
         self.test_figure_metrics = figure_metrics.clone(prefix="t_")
 
-        self.model = PSMModel(input_size, hparams)
+        self.model = PSMModel(hparams, input_size)
         # TODO: Change loss function
         if hparams.loss == "focal":
             self.loss_func = weighted_focal_loss
         else:
             self.loss_func = weighted_bce_loss
+        self.outputs = []
 
-    def forward(self, X, lengths, **kwargs):
-        output = self.model(X, lengths, **kwargs)
+    def forward(self, X, **kwargs):
+        output = self.model(X, **kwargs)
         return output
 
     # def on_after_backward(self):
@@ -83,16 +83,14 @@ class Net(pl.LightningModule):
         optimizer = Adam(self.parameters(), lr=self.hparams.lr)  # type: ignore
         scheduler = {
             "scheduler": ReduceLROnPlateau(optimizer, mode="max", patience=4, verbose=True),
-            "monitor": "v_MatthewsCorrCoef",  # TODO: Change monitor
+            "monitor": "v_BinaryMatthewsCorrCoef",  # TODO: Change monitor
         }
         return [optimizer], [scheduler]
 
     # learning rate warm-up
-    def optimizer_step(
-        self, curr_epoch, batch_idx, optim, opt_idx, optimizer_closure, *args, **kwargs
-    ):
+    def optimizer_step(self, curr_epoch, batch_idx, optim, optimizer_closure):
         # warm up lr
-        warm_up_steps = float((NUM_TRAIN_SPECTRA * 20) // self.hparams.batch_size)  # type: ignore
+        warm_up_steps = float(70000 // self.hparams.batch_size)  # type: ignore
         if self.trainer.global_step < warm_up_steps:
             lr_scale = min(1.0, float(self.trainer.global_step + 1) / warm_up_steps)
             for pg in optim.param_groups:
@@ -101,40 +99,38 @@ class Net(pl.LightningModule):
         optim.step(closure=optimizer_closure)
 
     def training_step(self, batch, batch_idx):
-        data, meta = batch
-        y_pred = self(data["feature"], meta["length"])
-        # TODO: Not sure if batch_work is needed
-        y_pred, y_true = batch_work(y_pred, data["label"], meta["length"])
-        return self.loss_func(y_pred, y_true, pos_weight=[1.0])
+        logits = self(batch["feature"])
+        return self.loss_func(logits, batch["label"].float())
 
     def val_test_step(self, batch, calc_metrics, calc_figure_metrics):
-        data, meta = batch
-        y_pred = self(data["feature"], meta["length"])
-        y_preds, y_true = batch_work(y_pred, data["label"], meta["length"])
-        y_pred = torch.sigmoid(y_preds)
-        calc_metrics.update(y_pred, y_true.int())
-        calc_figure_metrics.update(y_pred, y_true.int())
-        return {
-            calc_metrics.prefix + "loss": self.loss_func(y_preds, y_true, pos_weight=[1.0]),
+        logits = self(batch["feature"])
+        y_trues = batch["label"].float()
+        y_preds = torch.sigmoid(logits)
+        calc_metrics.update(y_preds, y_trues.int())
+        calc_figure_metrics.update(y_preds, y_trues.int())
+        loss = {
+            calc_metrics.prefix + "loss": self.loss_func(logits, y_trues),
         }
+        self.outputs.append(loss)
+        return loss
 
-    def val_test_epoch_end(self, outputs, calc_metrics, calc_figure_metrics):
+    def val_test_epoch_end(self, calc_metrics, calc_figure_metrics):
         metrics = OrderedDict(
             {
-                key: torch.stack([el[key] for el in outputs]).mean()
-                for key in outputs[0]
+                key: torch.stack([el[key] for el in self.outputs]).mean()
+                for key in self.outputs[0]
                 if not key.startswith("f_")
             }
         )
         metrics.update(calc_metrics.compute())
         calc_metrics.reset()
         for key, val in metrics.items():
-            self.try_log(key, val, len(outputs))
+            self.try_log(key, val, len(self.outputs))
 
         figure_metrics = OrderedDict(
             {
-                key[2:]: torch.stack(sum([el[key] for el in outputs], []))
-                for key in outputs[0]
+                key[2:]: torch.stack(sum([el[key] for el in self.outputs], []))
+                for key in self.outputs[0]
                 if key.startswith("f_")
             }
         )
@@ -143,21 +139,22 @@ class Net(pl.LightningModule):
         for key, val in figure_metrics.items():
             self.logger.experiment.add_figure(key, make_figure(key, val), self.current_epoch)  # type: ignore
             if key[2:] == "ROC":
-                self.try_log("v_auroc", auc(val[0], val[1], reorder=True), len(outputs))
+                self.try_log("v_auroc", auc(val[0], val[1], reorder=True), len(self.outputs))
             if key[2:] == "PrecisionRecallCurve":
-                self.try_log("v_auprc", auc(val[0], val[1], reorder=True), len(outputs))
+                self.try_log("v_auprc", auc(val[0], val[1], reorder=True), len(self.outputs))
+        self.outputs.clear()
 
     def validation_step(self, batch, batch_idx):
         return self.val_test_step(batch, self.valid_metrics, self.valid_figure_metrics)
 
-    def validation_epoch_end(self, outputs):
-        self.val_test_epoch_end(outputs, self.valid_metrics, self.valid_figure_metrics)
+    def on_validation_epoch_end(self):
+        self.val_test_epoch_end(self.valid_metrics, self.valid_figure_metrics)
 
     def test_step(self, batch, batch_idx):
         return self.val_test_step(batch, self.test_metrics, self.test_figure_metrics)
 
-    def test_epoch_end(self, outputs):
-        self.val_test_epoch_end(outputs, self.test_metrics, self.test_figure_metrics)
+    def on_test_epoch_end(self):
+        self.val_test_epoch_end(self.test_metrics, self.test_figure_metrics)
 
     def try_log(self, key, value, batch_size):
         try:

@@ -13,7 +13,6 @@ from utils import (
     MASS_SHIFT,
     MASS_SHIFT_DICT,
     MASS_SHIFT_CMD,
-    MAX_MASS,
     NUM_SPECTRA,
     download_url,
     unzip_file,
@@ -48,7 +47,10 @@ def extract_spectrums_for_mzml(mzml_name: str, scan_nums: list[int]):
             spectrum = reader.get_by_id(
                 f"controllerType=0 controllerNumber=1 scan={scan_num}", element_type="spectrum"
             )
-            spectrums[scan_num] = {"mz_arr": spectrum["m/z array"], "intensity_arr": spectrum["intensity array"]}
+            spectrums[scan_num] = {
+                "mz_arr": spectrum["m/z array"],
+                "intensity_arr": spectrum["intensity array"],
+            }
     return spectrums
 
 
