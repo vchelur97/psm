@@ -46,7 +46,7 @@ def main(hparams):
         logger=logger,
         callbacks=callbacks,
         val_check_interval=0.5,
-        precision="bf16-mixed",
+        precision="16-mixed",
         enable_progress_bar=hparams.enable_progress_bar,
         profiler="simple",
         accumulate_grad_batches=16,
