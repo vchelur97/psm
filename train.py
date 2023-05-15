@@ -49,7 +49,7 @@ def main(hparams):
         precision="16-mixed",
         enable_progress_bar=hparams.enable_progress_bar,
         profiler="simple",
-        accumulate_grad_batches=16,
+        accumulate_grad_batches=hparams.accumulate_grad_batches,
         # deterministic=True,
         # track_grad_norm=2,
         # fast_dev_run=True,
@@ -111,6 +111,13 @@ def parse_arguments():
         action="store_false",
     )
     trainer_group.set_defaults(enable_progress_bar=True)
+    trainer_group.add_argument(
+        "--accumulate-grad-batches",
+        metavar="SIZE",
+        default=1,
+        type=int,
+        help="Default: %(default)d",
+    )
     trainer_group.add_argument(
         "--test",
         dest="run_tests",
