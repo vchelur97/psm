@@ -138,9 +138,9 @@ class Net(pl.LightningModule):
         calc_figure_metrics.reset()
         for key, val in figure_metrics.items():
             self.logger.experiment.add_figure(key, make_figure(key, val), self.current_epoch)  # type: ignore
-            if key[2:] == "ROC":
+            if key[2:] == "BinaryROC":
                 self.try_log("v_auroc", auc(val[0], val[1], reorder=True), len(self.outputs))
-            if key[2:] == "PrecisionRecallCurve":
+            if key[2:] == "BinaryPrecisionRecallCurve":
                 self.try_log("v_auprc", auc(val[0], val[1], reorder=True), len(self.outputs))
         self.outputs.clear()
 

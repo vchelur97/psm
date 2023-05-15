@@ -98,12 +98,12 @@ def pr_figure(precision, recall, area):
 
 
 def make_figure(key, values):
-    if key[2:] == "ConfusionMatrix":
+    if key[2:] == "BinaryConfusionMatrix":
         return confusion_matrix_figure(values.detach().cpu().numpy(), ["NBR", "BR"])
-    elif key[2:] == "ROC":
+    elif key[2:] == "BinaryROC":
         area = auc(values[0], values[1], reorder=True)
         return roc_figure(values[0].detach().cpu().numpy(), values[1].detach().cpu().numpy(), area)
-    elif key[2:] == "PrecisionRecallCurve":
+    elif key[2:] == "BinaryPrecisionRecallCurve":
         area = auc(values[0], values[1], reorder=True)
         return pr_figure(values[0].detach().cpu().numpy(), values[1].detach().cpu().numpy(), area)
     else:

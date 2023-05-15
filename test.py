@@ -89,7 +89,7 @@ def pr_figure(precisions, recalls, areas, labels=None):
 
 
 def make_figure(key, values, labels=None):
-    if key[2:] == "ConfusionMatrix":
+    if key[2:] == "BinaryConfusionMatrix":
         cm = [[0, 0], [0, 0]]
         for value in values:
             cm[0][0] += value[0][0].numpy()
@@ -97,7 +97,7 @@ def make_figure(key, values, labels=None):
             cm[1][0] += value[1][0].numpy()
             cm[1][1] += value[1][1].numpy()
         return confusion_matrix_figure(np.array(cm), ["NBR", "BR"])
-    elif key[2:] == "ROC":
+    elif key[2:] == "BinaryROC":
         areas = [auc(value[0], value[1], reorder=True).detach().cpu().numpy() for value in values]
         return roc_figure(
             [value[0].numpy() for value in values],
@@ -105,7 +105,7 @@ def make_figure(key, values, labels=None):
             areas,
             labels,
         )
-    elif key[2:] == "PrecisionRecallCurve":
+    elif key[2:] == "BinaryPrecisionRecallCurve":
         areas = [auc(value[0], value[1], reorder=True) for value in values]
         return pr_figure(
             [value[0].numpy() for value in values],
