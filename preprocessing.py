@@ -1,14 +1,15 @@
 import os
 import pickle
-from collections import defaultdict
+import subprocess
 from argparse import ArgumentParser
+from collections import defaultdict
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from pyteomics import mzml
 from tqdm import tqdm
-from utils import NUM_SPECTRA, MAX_MASS, MASS_SHIFT_DICT, download_url, unzip_file
+from utils import MASS_SHIFT_DICT, MASS_SHIFT_CMD, MAX_MASS, NUM_SPECTRA, download_url, unzip_file
 
 
 def download_extract_dataset(url, raw_dir, file_name):
@@ -34,6 +35,7 @@ def create_discretized_spectrum(mz_array, intensity_arr):
             discretized[mass] = intensity / max_intensity
     return np.array(discretized)
 
+
 def extract_spectrums_for_mzml(mzml_name: str, scan_nums: list[int]):
     spectrums = {}
     with mzml.PreIndexedMzML(
@@ -49,7 +51,9 @@ def extract_spectrums_for_mzml(mzml_name: str, scan_nums: list[int]):
             spectrum = reader.get_by_id(
                 f"controllerType=0 controllerNumber=1 scan={scan_num}", element_type="spectrum"
             )
-            spectrums[scan_num] = create_discretized_spectrum(spectrum["m/z array"], spectrum["intensity array"])
+            spectrums[scan_num] = create_discretized_spectrum(
+                spectrum["m/z array"], spectrum["intensity array"]
+            )
     return spectrums
 
 
@@ -102,10 +106,27 @@ def extract_meta_info(meta_info_path, tsv_file, nrows):
         pickle.dump(meta_info, f)
 
 
-def generate_theospec_for_peptide(peptide):
+def run_theospec_command(charge, sequence):
+    try:
+        result = subprocess.run(
+            ["theospec", f"-z{charge}"] + MASS_SHIFT_CMD + [sequence],
+            check=True,
+            stdout=subprocess.PIPE
+        )
+        output = result.stdout.decode("utf-8").split("\n")
+    except subprocess.CalledProcessError as e:
+        print(f"theospec failed with error code {e.returncode}")
+    except FileNotFoundError:
+        print("theospec is not installed or not in the system PATH")
+    return []
+
+
+def generate_theospec_for_peptide(charge, peptide):
     for key, val in MASS_SHIFT_DICT.items():
         peptide = peptide.replace(key, str(val))
-    # Gen theospec
+    mz_arr = run_theospec_command(charge, peptide)
+    intensity_arr = [1] * len(mz_arr)
+    return create_discretized_spectrum(mz_arr, intensity_arr)
 
 
 def generate_theospec(theospec_path, meta_info_path):
@@ -113,13 +134,14 @@ def generate_theospec(theospec_path, meta_info_path):
     theospec = {}
     for mzml_file_name, scan_info in meta_info.items():
         for scan_num, scan_df in scan_info.items():
-            for peptide in scan_df["Peptide"]:
+            for charge, peptide in scan_df[["Charge", "Peptide"]].values:
                 if peptide in theospec:
                     continue
-                theospec[peptide] = generate_theospec_for_peptide(peptide)
+                theospec[peptide] = generate_theospec_for_peptide(charge, peptide)
 
     with open(theospec_path, "wb") as f:
         pickle.dump(theospec, f)
+
 
 def preprocess_data(type: str):
     if type == "train":
