@@ -41,11 +41,12 @@ def main(hparams):
 
     datamodule = PSMDataModule(hparams)
     trainer = pl.Trainer(
+        accelerator=hparams.accelerator,
         max_epochs=hparams.epochs,
         logger=logger,
         callbacks=callbacks,
         val_check_interval=0.5,
-        precision='bf16-mixed',
+        precision="bf16-mixed",
         enable_progress_bar=hparams.enable_progress_bar,
         profiler="simple",
         accumulate_grad_batches=16,
@@ -69,6 +70,13 @@ def parse_arguments():
     trainer_group = parser.add_argument_group("Trainer")
     trainer_group.add_argument(
         "--seed", default=42, type=int, help="Training seed. Default: %(default)d"
+    )
+    trainer_group.add_argument(
+        "--accelerator",
+        default="cpu",
+        choices=["gpu", "cpu", "tpu"],
+        type=str,
+        help="Accelerator to use Default: %(default)d",
     )
     trainer_group.add_argument(
         "--batch-size",
@@ -136,7 +144,7 @@ def parse_arguments():
     model_group = PSMModel.add_class_specific_args(model_group)
 
     # Parse as hyperparameters
-    hparams = parser.parse_args()
+    hparams = parser.parse_args(args=[])
     hparams.weights_save_path = os.path.abspath(os.path.expanduser(hparams.weights_save_path))
     hparams.data_dir = os.path.abspath(os.path.expanduser(hparams.data_dir))
     return hparams
