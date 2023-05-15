@@ -50,7 +50,7 @@ def main(hparams):
         enable_progress_bar=hparams.enable_progress_bar,
         profiler="simple",
         accumulate_grad_batches=16,
-        deterministic=True,
+        # deterministic=True,
         # track_grad_norm=2,
         # fast_dev_run=True,
         # overfit_batches=0.02,  # For fast training sanity check on 2% of data
