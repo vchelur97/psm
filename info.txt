@@ -1,0 +1,117 @@
+a = df["Peptide"].apply(lambda x: x[0])
+b = df["Peptide"].apply(lambda x: x[-1])
+
+a.value_counts()
+Peptide
+K    167225
+R    152322
+L     19560
+E     14407
+S     13840
+G     12210
+A     11782
+D     11113
+V     10629
+Q     10233
+T      9561
+P      9207
+I      8618
+N      7688
+M      7684
+F      7369
+-      6562
+Y      6175
+H      5889
+C      5668
+W      2223
+X        35
+
+b.value_counts()
+Peptide
+L    50905
+E    45171
+S    33947
+K    33399
+R    32721
+A    31180
+G    27614
+V    27159
+D    25960
+I    25655
+T    24778
+Q    24245
+N    20626
+P    20076
+F    19566
+Y    14341
+H    12387
+C    11621
+M    10940
+W     6504
+-     1168
+X       37
+Name: count, dtype: int64
+
+
+import pandas as pd
+import numpy as np
+
+df = pd.read_csv("./data/train/raw/train.tsv", sep="\t", nrows=500000)
+
+df["Peptide"].apply(lambda x: len([y for y in x if y.isalpha()])).max()
+
+
+# Getting number of unique mass shift values in peptides
+import pandas as pd
+df = pd.read_csv('./data/train/raw/train.tsv', sep='\t')
+peptides = df.Peptide.unique().tolist()
+import re
+numbers_in_peptides = []
+
+# Regular expression pattern to match any number
+pattern = r'[+-]?\d+\.?\d*'
+
+for peptide in peptides:
+    matches = re.findall(pattern, peptide)
+    # print(matches)
+    numbers_in_peptides.append(matches)
+
+# Print all the matches
+#Add an element to a set only if it is not present in the set
+
+unique_numbers_in_peptides = set()
+for peptide in numbers_in_peptides:
+    for i in range(len(peptide)):
+        unique_numbers_in_peptides.add(peptide[i])
+
+
+
+print(unique_numbers_in_peptides)
+
+
+# Theospec test
+
+import subprocess
+from utils import MASS_SHIFT_CMD, MASS_SHIFT_DICT
+
+
+result = subprocess.run(
+    ["./theospec", "-iabcxyz", f"-z{4}"] + MASS_SHIFT_CMD + ["R.PSQVSC5LVLTC5VVVDM2SGDALQRMDEGPAVVFREYQLHR.N"],
+    check=True,
+    stdout=subprocess.PIPE
+)
+output = result.stdout.decode("utf-8").split("\n")
+
+
+# Pickle loading data
+
+import pickle
+
+with open("./data/train/meta.pkl", "rb") as f:
+    data = pickle.load(f)
+
+for k, v in data["01088_A05_P010740_S00_N33_R1.mzML"].items():
+    if v["Charge"].dtype != "int":
+        print(k)
+
+x = data["01088_A05_P010740_S00_N33_R1.mzML"][40420].drop_duplicates(subset="Peptide")

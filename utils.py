@@ -1,5 +1,7 @@
 import os
 import subprocess
+import numpy as np
+from collections import defaultdict
 import zipfile
 
 
@@ -8,6 +10,18 @@ MAX_MASS = 5000
 MASS_SHIFT = ["+0.984", "+42.011", "+15.995", "-17.027", "+43.006", "+57.021"]
 MASS_SHIFT_DICT = {k: v for k, v in zip(MASS_SHIFT, range(len(MASS_SHIFT)))}
 MASS_SHIFT_CMD = [f"-c{val}={key}" for key, val in MASS_SHIFT_DICT.items()]
+
+
+def create_discretized_spectrum(mz_array, intensity_arr):
+    discretized_peaks = defaultdict(float)
+    for mz, intensity in zip(mz_array, intensity_arr):
+        discretized_peaks[round(mz * 0.995)] += intensity
+    max_intensity = max(discretized_peaks.values())
+    discretized = [0.0] * MAX_MASS
+    for mass, intensity in discretized_peaks.items():
+        if mass < MAX_MASS:
+            discretized[mass] = intensity / max_intensity
+    return np.array(discretized)
 
 
 def download_url(dir, url):
