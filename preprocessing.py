@@ -183,11 +183,13 @@ def preprocess_data(type: str):
     if type == "train":
         data_dir = hparams.train_dir
         # dataset_url = "http://proteomics.ucsd.edu/data/cse291_2022/lung_top20_dcf82dfcd2b8456b800d07e682d494b4.zip"
-        dataset_url = "https://www.dropbox.com/s/tplshpf10pxoed0/train.tsv?dl=1"
+        # dataset_url = "https://www.dropbox.com/s/tplshpf10pxoed0/train.tsv?dl=1"
+        dataset_url = "train.tsv"
     else:
         data_dir = hparams.test_dir
         # dataset_url = "http://proteomics.ucsd.edu/data/cse291_2022/colon_top20_87bb3840244542918c777f63352a6115.zip"
-        dataset_url = "https://www.dropbox.com/s/enjuvpe3enuz7hk/test.tsv?dl=1"
+        # dataset_url = "https://www.dropbox.com/s/enjuvpe3enuz7hk/test.tsv?dl=1"
+        dataset_url = "test.tsv"
     raw_dir = os.path.join(data_dir, "raw")
     mzml_dir = os.path.join(raw_dir, "mzml")
     nrows = NUM_SPECTRA[type]
