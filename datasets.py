@@ -98,6 +98,8 @@ class MSV000083508(Dataset):
             self.train_indices, self.valid_indices = train_test_split(
                 indices, test_size=0.2, shuffle=False
             )
+            self.train_indices = [self.train_indices]
+            self.valid_indices = [self.valid_indices]
 
         self.input_size = self[0]["feature"].shape[0]
 
