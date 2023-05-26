@@ -2,9 +2,10 @@
 # We define a dataset based on the preprocessed data
 import os
 from collections import defaultdict
-from glob import glob
 from utils import load_pickle, create_discretized_spectrum
-from sklearn.model_selection import StratifiedKFold
+
+# from sklearn.model_selection import StratifiedKFold
+from sklearn.model_selection import train_test_split
 
 import lightning.pytorch as pl
 import numpy as np
@@ -92,15 +93,11 @@ class MSV000083508(Dataset):
 
         # Folds for cross-validation
         if not test:
-            self.train_indices = []
-            self.valid_indices = []
-            for i, j in StratifiedKFold(
-                n_splits=5, shuffle=True, random_state=hparams.seed
-            ).split(
-                self.dataset, [x[-1] for x in self.dataset]  # type: ignore
-            ):
-                self.train_indices.append(i)
-                self.valid_indices.append(j)
+            indices = np.arange(len(self.dataset))
+            # Put 80% of the data in the training set and 20% in the validation set
+            self.train_indices, self.valid_indices = train_test_split(
+                indices, test_size=0.2, shuffle=False
+            )
 
         self.input_size = self[0]["feature"].shape[0]
 

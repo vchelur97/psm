@@ -110,7 +110,7 @@ def make_figure(key, values):
         return plt.figure(figsize=(8, 8))
 
 
-def weighted_focal_loss(y_pred, y_true, gamma=2.0, pos_weight=[9], **kwargs):
+def weighted_focal_loss(y_pred, y_true, gamma=2.0, pos_weight=[3.0], **kwargs):
     pos_weight = torch.Tensor(pos_weight).to(y_true.device)
     y_pred = torch.clamp(torch.sigmoid(y_pred), SMOOTH, 1.0 - SMOOTH)
     loss = -(pos_weight * y_true * torch.pow(1.0 - y_pred, gamma) * torch.log(y_pred)) - (
@@ -119,6 +119,6 @@ def weighted_focal_loss(y_pred, y_true, gamma=2.0, pos_weight=[9], **kwargs):
     return torch.mean(loss)
 
 
-def weighted_bce_loss(y_pred, y_true, pos_weight=[9], **kwargs):
+def weighted_bce_loss(y_pred, y_true, pos_weight=[3.0], **kwargs):
     pos_weight = torch.Tensor(pos_weight).to(y_true.device)
     return binary_cross_entropy_with_logits(y_pred, y_true, pos_weight=pos_weight, reduction="mean")
