@@ -6,8 +6,8 @@ import zipfile
 import pickle
 
 
-NUM_SPECTRA = {"train": 500000, "test": 500000}
-MAX_MASS = 5000
+# NUM_SPECTRA = {"train": 500000, "test": 500000}
+MAX_MASS = 2000
 MASS_SHIFT = ["+0.984", "+42.011", "+15.995", "-17.027", "+43.006", "+57.021"]
 MASS_SHIFT_DICT = {k: v for k, v in zip(MASS_SHIFT, range(len(MASS_SHIFT)))}
 MASS_SHIFT_CMD = [f"-c{val}={key}" for key, val in MASS_SHIFT_DICT.items()]

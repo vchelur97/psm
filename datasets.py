@@ -2,7 +2,6 @@
 # We define a dataset based on the preprocessed data
 import os
 from collections import defaultdict
-from glob import glob
 from utils import load_pickle, create_discretized_spectrum
 from sklearn.model_selection import StratifiedKFold
 
@@ -92,15 +91,9 @@ class MSV000083508(Dataset):
 
         # Folds for cross-validation
         if not test:
-            self.train_indices = []
-            self.valid_indices = []
-            for i, j in StratifiedKFold(
-                n_splits=5, shuffle=True, random_state=hparams.seed
-            ).split(
-                self.dataset, [x[-1] for x in self.dataset]  # type: ignore
-            ):
-                self.train_indices.append(i)
-                self.valid_indices.append(j)
+            indices = np.arange(len(self.dataset))
+            self.train_indices = indices[: 0.8 * len(indices)]
+            self.valid_indices = indices[0.8 * len(indices) :]
 
         self.input_size = self[0]["feature"].shape[0]
 

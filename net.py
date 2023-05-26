@@ -20,6 +20,7 @@ from torchmetrics import (
     Recall,
 )
 from torchmetrics.utilities.compute import auc
+from sklearn.metrics import classification_report
 
 SMOOTH = 1e-6
 
@@ -111,6 +112,7 @@ class Net(pl.LightningModule):
         loss = {
             calc_metrics.prefix + "loss": self.loss_func(logits, y_trues),
         }
+        print(classification_report(y_trues.int(), y_preds.int(), output_dict=True))
         self.outputs.append(loss)
         return loss
 
