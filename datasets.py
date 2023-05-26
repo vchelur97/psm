@@ -3,7 +3,9 @@
 import os
 from collections import defaultdict
 from utils import load_pickle, create_discretized_spectrum
-from sklearn.model_selection import StratifiedKFold
+
+# from sklearn.model_selection import StratifiedKFold
+from sklearn.model_selection import train_test_split
 
 import lightning.pytorch as pl
 import numpy as np
@@ -92,8 +94,10 @@ class MSV000083508(Dataset):
         # Folds for cross-validation
         if not test:
             indices = np.arange(len(self.dataset))
-            self.train_indices = indices[: 0.8 * len(indices)]
-            self.valid_indices = indices[0.8 * len(indices) :]
+            # Put 80% of the data in the training set and 20% in the validation set
+            self.train_indices, self.valid_indices = train_test_split(
+                indices, test_size=0.2, shuffle=False
+            )
 
         self.input_size = self[0]["feature"].shape[0]
 
