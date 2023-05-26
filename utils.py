@@ -11,6 +11,10 @@ MAX_MASS = 5000
 MASS_SHIFT = ["+0.984", "+42.011", "+15.995", "-17.027", "+43.006", "+57.021"]
 MASS_SHIFT_DICT = {k: v for k, v in zip(MASS_SHIFT, range(len(MASS_SHIFT)))}
 MASS_SHIFT_CMD = [f"-c{val}={key}" for key, val in MASS_SHIFT_DICT.items()]
+DATASET_URLS = {
+    "train": "https://www.dropbox.com/s/tplshpf10pxoed0/train.tsv?dl=1",
+    "test": "https://www.dropbox.com/s/enjuvpe3enuz7hk/test.tsv?dl=1",
+}
 
 
 def create_discretized_spectrum(mz_array, intensity_arr):
@@ -45,6 +49,12 @@ def unzip_file(zip_file: str, unzipped_file: str) -> None:
         zip_ref.extractall(f"{unzipped_file}")
 
 
+def download_extract(url, raw_dir, file_name):
+    download_url(raw_dir, url)
+    if url.endswith(".zip"):
+        unzip_file(os.path.join(raw_dir, url.split("/")[-1]), file_name)
+
+
 def load_pickle(file_path: str) -> dict:
     with open(file_path, "rb") as f:
         data = pickle.load(f)
@@ -54,11 +64,11 @@ def load_pickle(file_path: str) -> dict:
 def is_notebook() -> bool:
     try:
         shell = get_ipython().__class__.__name__
-        if shell == 'ZMQInteractiveShell' or shell == 'Shell':
-            return True   # Jupyter notebook or qtconsole or colab
-        elif shell == 'TerminalInteractiveShell':
+        if shell == "ZMQInteractiveShell" or shell == "Shell":
+            return True  # Jupyter notebook or qtconsole or colab
+        elif shell == "TerminalInteractiveShell":
             return False  # Terminal running IPython
         else:
             return False  # Other type (?)
     except NameError:
-        return False      # Probably standard Python interpreter
+        return False  # Probably standard Python interpreter

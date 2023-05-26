@@ -15,15 +15,8 @@ from utils import (
     MASS_SHIFT_CMD,
     NUM_SPECTRA,
     download_url,
-    unzip_file,
+    DATASET_URLS,
 )
-
-
-def download_extract_dataset(url, raw_dir, file_name):
-    if hparams.on_sample:
-        return
-    download_url(raw_dir, url)
-    # unzip_file(os.path.join(raw_dir, url.split("/")[-1]), file_name)
 
 
 def download_mzml_file(mzml_dir, mzml_location):
@@ -100,7 +93,7 @@ def extract_meta_info(meta_info_path, tsv_file, nrows):
             ]
             scan_df["Label"] = False
             scan_df.iat[0, -1] = True
-            scan_df = scan_df.iloc[[0] + list(range(5, min(len(scan_df), 14)))]
+            # scan_df = scan_df.iloc[[0] + list(range(5, min(len(scan_df), 14)))]
             meta_info[mzml_file_name][scan_num] = scan_df
 
     with open(meta_info_path, "wb") as f:
@@ -182,25 +175,17 @@ def generate_theospec(theospec_path, meta_info_path):
 def preprocess_data(type: str):
     if type == "train":
         data_dir = hparams.train_dir
-        # dataset_url = "http://proteomics.ucsd.edu/data/cse291_2022/lung_top20_dcf82dfcd2b8456b800d07e682d494b4.zip"
-        # dataset_url = "https://www.dropbox.com/s/tplshpf10pxoed0/train.tsv?dl=1"
-        dataset_url = "train.tsv"
     else:
         data_dir = hparams.test_dir
-        # dataset_url = "http://proteomics.ucsd.edu/data/cse291_2022/colon_top20_87bb3840244542918c777f63352a6115.zip"
-        # dataset_url = "https://www.dropbox.com/s/enjuvpe3enuz7hk/test.tsv?dl=1"
-        dataset_url = "test.tsv"
+    # dataset_url = DATASET_URLS[type]
     raw_dir = os.path.join(data_dir, "raw")
     mzml_dir = os.path.join(raw_dir, "mzml")
     nrows = NUM_SPECTRA[type]
-    if hparams.on_sample:
-        tsv_file = os.path.join(hparams.sample_dir, "abc.tsv")
-    else:
-        tsv_file = os.path.join(raw_dir, f"{type}.tsv")
+    tsv_file = os.path.join(raw_dir, f"{type}.tsv")
 
     spectrum_info_path = os.path.join(data_dir, "spectrum.pkl")
     if not os.path.exists(spectrum_info_path):
-        download_extract_dataset(dataset_url, raw_dir, tsv_file)
+        # download_url(raw_dir, dataset_url)
         preprocess_mzmls(mzml_dir, spectrum_info_path, tsv_file, nrows)
 
     meta_info_path = os.path.join(data_dir, "meta.pkl")
@@ -219,18 +204,10 @@ parser.add_argument(
     type=str,
     help="Location of data directory. Default: %(default)s",
 )
-parser.add_argument(
-    "--sample",
-    dest="on_sample",
-    action="store_true",
-    help="Run preprocessing on a sample subset. Default: %(default)s",
-)
-parser.set_defaults(on_sample=False)
 hparams = parser.parse_args()
 hparams.data_dir = os.path.abspath(os.path.expanduser(hparams.data_dir))
 hparams.train_dir = os.path.join(hparams.data_dir, "train")
 hparams.test_dir = os.path.join(hparams.data_dir, "test")
-hparams.sample_dir = os.path.join(hparams.data_dir, "sample")
 
-preprocess_data("train")
+# preprocess_data("train")
 preprocess_data("test")

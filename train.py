@@ -59,10 +59,13 @@ def main(hparams):
     )
     net = Net(hparams, datamodule.input_size)
 
-    trainer.fit(net, ckpt_path=hparams.ckpt_path, datamodule=datamodule)
+    if hparams.load_train_ds:
+        trainer.fit(net, ckpt_path=hparams.ckpt_path, datamodule=datamodule)
 
     if hparams.run_tests:
         trainer.test(ckpt_path="best", datamodule=datamodule)
+
+    return datamodule, trainer, net
 
 
 def parse_arguments():
