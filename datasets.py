@@ -93,7 +93,7 @@ class MSV000083508(Dataset):
 
         # Folds for cross-validation
         if not test:
-            indices = np.arange(len(self.dataset))
+            indices = list(range(len(self.dataset)))
             # Put 80% of the data in the training set and 20% in the validation set
             self.train_indices, self.valid_indices = train_test_split(
                 indices, test_size=0.2, shuffle=False
