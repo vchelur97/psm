@@ -33,6 +33,7 @@ class PSMDataModule(pl.LightningDataModule):
             Subset(self.train_ds, self.train_ds.train_indices[self.fold]),
             batch_size=self.batch_size,
             num_workers=self.num_cpus,
+            pin_memory=True,
             shuffle=True,
         )
 
@@ -41,6 +42,7 @@ class PSMDataModule(pl.LightningDataModule):
             Subset(self.train_ds, self.train_ds.valid_indices[self.fold]),
             batch_size=self.batch_size,
             num_workers=self.num_cpus,
+            pin_memory=True,
             shuffle=False,
         )
 
@@ -49,6 +51,7 @@ class PSMDataModule(pl.LightningDataModule):
             self.test_ds,
             batch_size=self.batch_size,
             num_workers=self.num_cpus,
+            pin_memory=True,
             shuffle=False,
         )
 

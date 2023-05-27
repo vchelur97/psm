@@ -112,7 +112,7 @@ class Net(pl.LightningModule):
         loss = {
             calc_metrics.prefix + "loss": self.loss_func(logits, y_trues),
         }
-        print(classification_report(y_trues.int().cpu().numpy(), y_preds.int().cpu().numpy()))
+        # print(classification_report(y_trues.int().cpu().numpy(), y_preds.int().cpu().numpy()))
         self.outputs.append(loss)
         return loss
 
