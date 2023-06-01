@@ -55,6 +55,8 @@ def main(hparams):
         # track_grad_norm=2,
         # fast_dev_run=True,
         # overfit_batches=0.02,  # For fast training sanity check on 2% of data
+        limit_train_batches=0.3,
+        limit_val_batches=0.3,
         # limit_test_batches=0.02,  # For fast testing sanity check on 2% of data
     )
     net = Net(hparams, datamodule.input_size)
