@@ -65,7 +65,7 @@ def main(hparams):
         trainer.fit(net, ckpt_path=hparams.ckpt_path, datamodule=datamodule)
 
     if hparams.run_tests:
-        trainer.test(ckpt_path="best", datamodule=datamodule)
+        trainer.test(net, ckpt_path="best", datamodule=datamodule)
 
     return datamodule, trainer, net
 

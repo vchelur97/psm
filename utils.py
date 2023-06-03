@@ -17,10 +17,18 @@ DATASET_URLS = {
 }
 
 
-def create_discretized_spectrum(mz_array, intensity_arr):
+def create_discretized_spectrum(mz_array, intensity_arr, annotations=None):
     discretized_peaks = defaultdict(float)
-    for mz, intensity in zip(mz_array, intensity_arr):
-        discretized_peaks[round(mz * 0.995)] += intensity
+    if annotations is None:
+        annotations = [0] * len(mz_array)
+    for mz, intensity, annotation in zip(mz_array, intensity_arr, annotations):
+        if annotation == 0:
+            discretized_peaks[round(mz * 0.995)] += intensity
+        else:
+            if annotation == "?":
+                discretized_peaks[round(mz * 0.995)] += (-intensity)
+            else:
+                discretized_peaks[round(mz * 0.995)] += intensity
     max_intensity = max(discretized_peaks.values())
     discretized = [0.0] * MAX_MASS
     for mass, intensity in discretized_peaks.items():
