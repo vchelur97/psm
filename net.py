@@ -32,7 +32,7 @@ class Net(pl.LightningModule):
             hparams = Namespace(**hparams)
         # torch.autograd.set_detect_anomaly(True)
         hparams.input_size = input_size
-        self.save_hyperparameters(hparams)
+        self.save_hyperparameters(hparams) 
 
         metrics = MetricCollection(
             [
@@ -189,7 +189,7 @@ class Net(pl.LightningModule):
         parser.add_argument(
             "--threshold",
             type=float,
-            default=0.5,
+            default=0.25,
             help="Threshold to use for binary classification. Default: %(default)f",
         )
         return parser
