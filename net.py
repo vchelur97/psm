@@ -176,7 +176,7 @@ class Net(pl.LightningModule):
         parser.add_argument(
             "--dropout",
             type=float,
-            default=0.2,
+            default=0.1,
             help="Dropout to be applied between layers. Default: %(default)f",
         )
         parser.add_argument(
