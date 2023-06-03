@@ -55,17 +55,19 @@ def main(hparams):
         # track_grad_norm=2,
         # fast_dev_run=True,
         # overfit_batches=0.02,  # For fast training sanity check on 2% of data
-        limit_train_batches=0.3,
-        limit_val_batches=0.3,
+        # limit_train_batches=0.3,
+        # limit_val_batches=0.3,
         # limit_test_batches=0.02,  # For fast testing sanity check on 2% of data
     )
     net = Net(hparams, datamodule.input_size)
 
     if hparams.load_train_ds:
         trainer.fit(net, ckpt_path=hparams.ckpt_path, datamodule=datamodule)
-
-    if hparams.run_tests:
-        trainer.test(net, ckpt_path="best", datamodule=datamodule)
+        if hparams.run_tests:
+            trainer.test(net, ckpt_path="best", datamodule=datamodule)
+    else:
+        if hparams.run_tests:
+            trainer.test(net, ckpt_path=hparams.ckpt_path, datamodule=datamodule)
 
     return datamodule, trainer, net
 
