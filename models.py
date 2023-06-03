@@ -8,8 +8,8 @@ class PSMModel(torch.nn.Module):
         layers = []
         for size in hparams.hidden_sizes:
             layers += [torch.nn.Linear(input_size, size)]
-            layers += [torch.nn.LeakyReLU()]
-            layers += [torch.nn.Dropout(hparams.dropout)]
+            # layers += [torch.nn.LeakyReLU()]
+            # layers += [torch.nn.Dropout(hparams.dropout)]
             input_size = size
         layers += [torch.nn.Linear(input_size, 1)]
         self.model = torch.nn.Sequential(*layers)
