@@ -11,7 +11,7 @@ class PSMModel(torch.nn.Module):
             layers += [torch.nn.LeakyReLU()]
             layers += [torch.nn.Dropout(hparams.dropout)]
             input_size = size
-        layers += [torch.nn.Linear(input_size, 1)]
+        layers += [torch.nn.Conv1d(input_size, 1)]
         self.model = torch.nn.Sequential(*layers)
 
     def forward(self, x):
