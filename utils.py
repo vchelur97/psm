@@ -30,6 +30,7 @@ def create_discretized_spectrum(mz_array, intensity_arr, annotations=None):
             else:
                 discretized_peaks[round(mz * 0.995)] += intensity
     max_intensity = max(discretized_peaks.values())
+    max_intensity = max(abs(min(discretized_peaks.values())), max_intensity)
     discretized = [0.0] * MAX_MASS
     for mass, intensity in discretized_peaks.items():
         if mass < MAX_MASS:

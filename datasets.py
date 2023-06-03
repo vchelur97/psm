@@ -84,14 +84,15 @@ class MSV000083508(Dataset):
             self.dataset_dir = os.path.join(hparams.data_dir, "train")
             self.fold = str(hparams.fold)
 
-        self.meta_info = load_pickle(os.path.join(self.dataset_dir, "meta.pkl"))
-        self.spectrum_info = load_pickle(os.path.join(self.dataset_dir, "spectrum.pkl"))
-        self.theospec_info = load_pickle(os.path.join(self.dataset_dir, "theospec.pkl"))
+        self.annotations_info = load_pickle(os.path.join(self.dataset_dir, "annotations.pkl"))
+        # self.meta_info = load_pickle(os.path.join(self.dataset_dir, "meta.pkl"))
+        # self.spectrum_info = load_pickle(os.path.join(self.dataset_dir, "spectrum.pkl"))
+        # self.theospec_info = load_pickle(os.path.join(self.dataset_dir, "theospec.pkl"))
         self.dataset = [
-            [mzml, scan_num, idx, psm[0], psm[1]["Label"]]
-            for mzml in self.meta_info
-            for scan_num in self.meta_info[mzml]
-            for idx, psm in enumerate(self.meta_info[mzml][scan_num].iterrows())
+            [mzml, scan_num, idx, True] if idx == 0 else [mzml, scan_num, idx, False]
+            for mzml in self.annotations_info
+            for scan_num in self.annotations_info[mzml]
+            for idx in range(len(self.annotations_info[mzml][scan_num]["peptides"]))
         ]
 
         # Folds for cross-validation
@@ -107,18 +108,15 @@ class MSV000083508(Dataset):
         self.input_size = self[0]["feature"].shape[0]
 
     def __getitem__(self, index):
-        mzml, scan_num, idx, _, label = self.dataset[index]
-        meta_info = self.meta_info[mzml][scan_num].iloc[idx]
+        mzml, scan_num, idx, label = self.dataset[index]
+        # meta_info = self.meta_info[mzml][scan_num].iloc[idx]
         discretized_spec = create_discretized_spectrum(
-            self.spectrum_info[mzml][scan_num]["mz_arr"],
-            self.spectrum_info[mzml][scan_num]["intensity_arr"],
-        )
-        discretized_theospec = create_discretized_spectrum(
-            self.theospec_info[meta_info["Peptide"]]["mz_arr"],
-            self.theospec_info[meta_info["Peptide"]]["intensity_arr"],
+            self.annotations_info[mzml][scan_num]["mz_arr"],
+            self.annotations_info[mzml][scan_num]["intensity_arr"],
+            self.annotations_info[mzml][scan_num]["annotations_arr"][idx]
         )
         data = {
-            "feature": np.array(discretized_spec + discretized_theospec).astype(np.float32),
+            "feature": np.array(discretized_spec).astype(np.float32),
             "label": label,
         }
         return data
