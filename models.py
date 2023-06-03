@@ -7,9 +7,9 @@ class PSMModel(torch.nn.Module):
         self.input_size = input_size
         layers = []
         for size in hparams.hidden_sizes:
-            layers += [torch.nn.Linear(input_size, size)]
-            # layers += [torch.nn.LeakyReLU()]
-            # layers += [torch.nn.Dropout(hparams.dropout)]
+            layers += [torch.nn.Conv1d(input_size, size, kernel_size=3, padding=1)]
+            layers += [torch.nn.LeakyReLU()]
+            layers += [torch.nn.Dropout(hparams.dropout)]
             input_size = size
         layers += [torch.nn.Linear(input_size, 1)]
         self.model = torch.nn.Sequential(*layers)
@@ -23,7 +23,7 @@ class PSMModel(torch.nn.Module):
             "--hidden-sizes",
             nargs="+",
             type=int,
-            default=[512, 128, 32],
+            default=[512, 64],
             help="The size of the 1-D convolutional layers. Default: %(default)s",
         )
         return parser

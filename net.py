@@ -66,8 +66,8 @@ class Net(pl.LightningModule):
         self.outputs = []
 
     def forward(self, X, **kwargs):
-        output = self.model(X, **kwargs)
-        return output
+        output = self.model(X.unsqueeze(2), **kwargs)
+        return output.squeeze(2)
 
     # def on_after_backward(self):
     #     # example to inspect gradient information in tensorboard
