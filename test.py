@@ -96,7 +96,7 @@ def make_figure(key, values, labels=None):
             cm[0][1] += value[0][1].numpy()
             cm[1][0] += value[1][0].numpy()
             cm[1][1] += value[1][1].numpy()
-        return confusion_matrix_figure(np.array(cm), ["NBR", "BR"])
+        return confusion_matrix_figure(np.array(cm), ["False", "True"])
     elif key[2:] == "BinaryROC":
         areas = [auc(value[0], value[1], reorder=True).detach().cpu().numpy() for value in values]
         return roc_figure(

@@ -99,7 +99,7 @@ def pr_figure(precision, recall, area):
 
 def make_figure(key, values):
     if key[2:] == "BinaryConfusionMatrix":
-        return confusion_matrix_figure(values.detach().cpu().numpy(), ["NBR", "BR"])
+        return confusion_matrix_figure(values.detach().cpu().numpy(), ["False", "True"])
     elif key[2:] == "BinaryROC":
         area = auc(values[0], values[1], reorder=True)
         return roc_figure(values[0].detach().cpu().numpy(), values[1].detach().cpu().numpy(), area)
