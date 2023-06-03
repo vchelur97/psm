@@ -24,7 +24,7 @@ class PSMModel(torch.nn.Module):
             "--hidden-sizes",
             nargs="+",
             type=int,
-            default=[512, 128],
+            default=[512, 128, 32],
             help="The size of the 1-D convolutional layers. Default: %(default)s",
         )
         return parser
