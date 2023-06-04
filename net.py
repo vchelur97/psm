@@ -96,13 +96,15 @@ class Net(pl.LightningModule):
     #             pg["lr"] = lr_scale * self.hparams.lr  # type: ignore
 
     #     optim.step(closure=optimizer_closure)
+    def predict_step(self, batch, batch_idx):
+        return self(batch["feature"])
 
     def training_step(self, batch, batch_idx):
-        logits = self(batch["feature"])
+        logits = self.predict_step(batch, batch_idx)
         return self.loss_func(logits, batch["label"].float())
 
     def val_test_step(self, batch, calc_metrics, calc_figure_metrics):
-        logits = self(batch["feature"])
+        logits = self.predict_step(batch, 0)
         y_trues = batch["label"].float()
         y_preds = torch.sigmoid(logits)
         calc_metrics.update(y_preds, y_trues.int())
