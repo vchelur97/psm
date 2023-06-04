@@ -99,7 +99,9 @@ class MakeResNet(torch.nn.Module):
             norm_layer(out_planes),
         )
         layers = []
-        layers.append(BasicBlock(self.start_planes, out_planes, kernel_size, norm_layer, downsample))
+        layers.append(
+            BasicBlock(self.start_planes, out_planes, kernel_size, norm_layer, downsample)
+        )
         self.start_planes = out_planes
         for _ in range(1, blocks):
             layers.append(BasicBlock(self.start_planes, out_planes, kernel_size, norm_layer))
@@ -116,6 +118,31 @@ class MakeResNet(torch.nn.Module):
             x = self.layers[i](x)
 
         return x
+
+    @staticmethod
+    def add_class_specific_args(parser):
+        parser.add_argument(
+            "--layers",
+            nargs="+",
+            type=int,
+            default=[2, 2],
+            help="The number of basic blocks to be used in each layer. Default: %(default)s",
+        )
+        parser.add_argument(
+            "--hidden-sizes",
+            nargs="+",
+            type=int,
+            default=[512, 64],
+            help="The size of the 1-D convolutional layers. Default: %(default)s",
+        )
+        parser.add_argument(
+            "--kernel-sizes",
+            nargs="+",
+            type=int,
+            default=[3, 3],
+            help="Kernel sizes of the 2 convolutional layers of the basic block. Default: %(default)s",
+        )
+        return parser
 
 
 class Detector(torch.nn.Module):
@@ -148,42 +175,88 @@ class Detector(torch.nn.Module):
         return parser
 
 
+# class PSMModel(torch.nn.Module):
+#     def __init__(self, hparams, input_size):
+#         super().__init__()
+#         assert len(hparams.layers) == len(hparams.hidden_sizes)
+#         self.input_size = input_size
+#         self.resnet_layer = MakeResNet(
+#             hparams.layers, hparams.kernel_sizes, self.input_size, hparams.hidden_sizes
+#         )
+#         self.detector = Detector(hparams, hparams.hidden_sizes[-1])
+
+#     def forward(self, X, **kwargs):
+#         # [Batch, input_size] -> [Batch, hidden_sizes[-1]]
+#         out = self.resnet_layer(X.unsqueeze(2))
+#         # [Batch, hidden_sizes[-1]] -> [Batch]
+#         out = self.detector(out.squeeze(2))
+#         return out.squeeze(1)
+
+#     @staticmethod
+#     def add_class_specific_args(parser):
+#         parser = MakeResNet.add_class_specific_args(parser)
+#         parser = Detector.add_class_specific_args(parser)
+#         return parser
+
+
 class PSMModel(torch.nn.Module):
     def __init__(self, hparams, input_size):
         super().__init__()
-        assert len(hparams.layers) == len(hparams.hidden_sizes)
         self.input_size = input_size
-        self.resnet_layer = MakeResNet(hparams.layers, hparams.kernel_sizes, self.input_size, hparams.hidden_sizes)
-        self.detector = Detector(hparams, hparams.hidden_sizes[-1])
+        layers = []
+        for size in hparams.hidden_sizes:
+            layers += [torch.nn.Linear(input_size, size)]
+            layers += [torch.nn.ReLU()]
+            layers += [torch.nn.Dropout(hparams.dropout)]
+            input_size = size
+        layers += [torch.nn.Linear(input_size, 1)]
+        self.model = torch.nn.Sequential(*layers)
 
-    def forward(self, X, **kwargs):
-        # [Batch, input_size] -> [Batch, hidden_sizes[-1]]
-        out = self.resnet_layer(X.unsqueeze(2))
-        # [Batch, hidden_sizes[-1]] -> [Batch]
-        out = self.detector(out)
-        return out
+    def forward(self, x):
+        return self.model(x).squeeze(1)
 
     @staticmethod
     def add_class_specific_args(parser):
         parser.add_argument(
-            "--layers",
-            nargs="+",
-            type=int,
-            default=[2, 2],
-            help="The number of basic blocks to be used in each layer. Default: %(default)s",
-        )
-        parser.add_argument(
             "--hidden-sizes",
             nargs="+",
             type=int,
-            default=[512, 64],
+            default=[512, 128, 32],
             help="The size of the 1-D convolutional layers. Default: %(default)s",
         )
-        parser.add_argument(
-            "--kernel-sizes",
-            nargs="+",
-            type=int,
-            default=[3, 3],
-            help="Kernel sizes of the 2 convolutional layers of the basic block. Default: %(default)s",
-        )
         return parser
+
+
+# class PSMModel(torch.nn.Module):
+#     def __init__(self, hparams, input_size):
+#         super().__init__()
+#         self.input_size = input_size
+#         self.fc1 = torch.nn.Linear(input_size, 256)
+#         self.transformer = torch.nn.TransformerEncoder(
+#             torch.nn.TransformerEncoderLayer(
+#                 d_model=256,
+#                 nhead=8,
+#                 dim_feedforward=512,
+#                 dropout=hparams.dropout,
+#                 activation="tanh",
+#             ),
+#             num_layers=2,
+#         )
+#         self.fc2 = torch.nn.Linear(256, 1)
+
+#     def forward(self, x):
+#         x = self.fc1(x)
+#         x = self.transformer(x.unsqueeze(0))
+#         x = self.fc2(x.squeeze(0))
+#         return x.squeeze(1)
+
+#     @staticmethod
+#     def add_class_specific_args(parser):
+#         parser.add_argument(
+#             "--hidden-sizes",
+#             nargs="+",
+#             type=int,
+#             default=[512, 128, 32],
+#             help="The size of the 1-D convolutional layers. Default: %(default)s",
+#         )
+#         return parser
