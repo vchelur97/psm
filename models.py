@@ -206,7 +206,7 @@ class PSMModel(torch.nn.Module):
         layers = []
         for size in hparams.hidden_sizes:
             layers += [torch.nn.Linear(input_size, size)]
-            layers += [torch.nn.ReLU()]
+            layers += [torch.nn.PReLU()]
             layers += [torch.nn.Dropout(hparams.dropout)]
             input_size = size
         layers += [torch.nn.Linear(input_size, 1)]
@@ -222,7 +222,7 @@ class PSMModel(torch.nn.Module):
             nargs="+",
             type=int,
             default=[512, 128, 32],
-            help="The size of the 1-D convolutional layers. Default: %(default)s",
+            help="The size of the feedforward layers. Default: %(default)s",
         )
         return parser
 

@@ -22,8 +22,6 @@ from torchmetrics import (
 from torchmetrics.utilities.compute import auc
 from sklearn.metrics import classification_report
 
-SMOOTH = 1e-6
-
 
 class Net(pl.LightningModule):
     def __init__(self, hparams, input_size):
@@ -83,21 +81,21 @@ class Net(pl.LightningModule):
     def configure_optimizers(self):
         optimizer = Adam(self.parameters(), lr=self.hparams.lr)  # type: ignore
         scheduler = {
-            "scheduler": ReduceLROnPlateau(optimizer, mode="max", patience=3, verbose=True),
-            "monitor": "v_BinaryMatthewsCorrCoef",  # TODO: Change monitor
+            "scheduler": ReduceLROnPlateau(optimizer, mode="min", patience=3, verbose=True),
+            "monitor": "v_loss",
         }
         return [optimizer], [scheduler]
 
     # learning rate warm-up
-    def optimizer_step(self, curr_epoch, batch_idx, optim, optimizer_closure):
-        # warm up lr
-        warm_up_steps = float(70000 // self.hparams.batch_size)  # type: ignore
-        if self.trainer.global_step < warm_up_steps:
-            lr_scale = min(1.0, float(self.trainer.global_step + 1) / warm_up_steps)
-            for pg in optim.param_groups:
-                pg["lr"] = lr_scale * self.hparams.lr  # type: ignore
+    # def optimizer_step(self, curr_epoch, batch_idx, optim, optimizer_closure):
+    #     # warm up lr
+    #     warm_up_steps = float(70000 // self.hparams.batch_size)  # type: ignore
+    #     if self.trainer.global_step < warm_up_steps:
+    #         lr_scale = min(1.0, float(self.trainer.global_step + 1) / warm_up_steps)
+    #         for pg in optim.param_groups:
+    #             pg["lr"] = lr_scale * self.hparams.lr  # type: ignore
 
-        optim.step(closure=optimizer_closure)
+    #     optim.step(closure=optimizer_closure)
 
     def training_step(self, batch, batch_idx):
         logits = self(batch["feature"])
@@ -169,7 +167,7 @@ class Net(pl.LightningModule):
     def add_class_specific_args(parser):
         parser.add_argument(
             "--lr",
-            default=0.01,
+            default=0.05,
             type=float,
             help="Main Net Learning Rate. Default: %(default)f",
         )
@@ -189,7 +187,7 @@ class Net(pl.LightningModule):
         parser.add_argument(
             "--threshold",
             type=float,
-            default=0.25,
+            default=0.5,
             help="Threshold to use for binary classification. Default: %(default)f",
         )
         return parser

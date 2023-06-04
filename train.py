@@ -22,11 +22,11 @@ def main(hparams):
     callbacks = [
         ModelSummary(),
         ModelCheckpoint(
-            monitor="v_BinaryMatthewsCorrCoef",
+            monitor="v_loss",
             verbose=True,
             save_top_k=3,
-            mode="max",
-            filename="{epoch:d}-{v_BinaryMatthewsCorrCoef:.3f}-{v_BinaryAccuracy:.3f}-{v_BinaryF1Score:.3f}",
+            mode="min",
+            filename="{epoch:d}-{v_loss:.3f}-{v_BinaryMatthewsCorrCoef:.3f}-{v_BinaryAccuracy:.3f}-{v_BinaryF1Score:.3f}",
         ),
         StochasticWeightAveraging(hparams.lr),
     ]
@@ -46,11 +46,11 @@ def main(hparams):
         max_epochs=hparams.epochs,
         logger=logger,
         callbacks=callbacks,
-        val_check_interval=0.5,
-        precision="16-mixed",
+        # val_check_interval=0.5,
+        # precision="16-mixed",
         enable_progress_bar=hparams.enable_progress_bar,
         # profiler="simple",
-        accumulate_grad_batches=hparams.accumulate_grad_batches,
+        # accumulate_grad_batches=hparams.accumulate_grad_batches,
         # deterministic=True,
         # track_grad_norm=2,
         # fast_dev_run=True,
@@ -90,7 +90,7 @@ def parse_arguments():
     trainer_group.add_argument(
         "--batch-size",
         metavar="SIZE",
-        default=32,
+        default=64,
         type=int,
         help="Default: %(default)d",
     )
@@ -123,7 +123,7 @@ def parse_arguments():
     trainer_group.add_argument(
         "--accumulate-grad-batches",
         metavar="SIZE",
-        default=8,
+        default=1,
         type=int,
         help="Default: %(default)d",
     )
