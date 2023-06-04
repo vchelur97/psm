@@ -22,10 +22,10 @@ def main(hparams):
     callbacks = [
         ModelSummary(),
         ModelCheckpoint(
-            monitor="v_loss",
+            monitor="v_BinaryMatthewsCorrCoef",
             verbose=True,
             save_top_k=3,
-            mode="min",
+            mode="max",
             filename="{epoch:d}-{v_loss:.3f}-{v_BinaryMatthewsCorrCoef:.3f}-{v_BinaryAccuracy:.3f}-{v_BinaryF1Score:.3f}",
         ),
         StochasticWeightAveraging(hparams.lr),

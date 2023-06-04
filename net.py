@@ -81,8 +81,8 @@ class Net(pl.LightningModule):
     def configure_optimizers(self):
         optimizer = Adam(self.parameters(), lr=self.hparams.lr)  # type: ignore
         scheduler = {
-            "scheduler": ReduceLROnPlateau(optimizer, mode="min", patience=3, verbose=True),
-            "monitor": "v_loss",
+            "scheduler": ReduceLROnPlateau(optimizer, mode="max", patience=3, verbose=True),
+            "monitor": "v_BinaryMatthewsCorrCoef",  # TODO: Change monitor
         }
         return [optimizer], [scheduler]
 
@@ -167,7 +167,7 @@ class Net(pl.LightningModule):
     def add_class_specific_args(parser):
         parser.add_argument(
             "--lr",
-            default=0.05,
+            default=0.01,
             type=float,
             help="Main Net Learning Rate. Default: %(default)f",
         )
