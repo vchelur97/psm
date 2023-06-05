@@ -5,7 +5,7 @@ import lightning.pytorch as pl
 import torch
 from metrics import make_figure, weighted_bce_loss, weighted_focal_loss
 from models import PSMModel
-from torch.optim import Adam
+from torch.optim import AdamW
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torchmetrics import (
     ROC,
@@ -57,10 +57,10 @@ class Net(pl.LightningModule):
 
         self.model = PSMModel(hparams, input_size)
         # TODO: Change loss function
-        if hparams.loss == "focal":
-            self.loss_func = weighted_focal_loss
-        else:
-            self.loss_func = weighted_bce_loss
+        # if hparams.loss == "focal":
+        self.loss_func = weighted_focal_loss
+        # self.loss_func = weighted_bce_loss
+        # else:
         self.outputs = []
 
     def forward(self, X, **kwargs):
@@ -79,10 +79,10 @@ class Net(pl.LightningModule):
     #             )
 
     def configure_optimizers(self):
-        optimizer = Adam(self.parameters(), lr=self.hparams.lr)  # type: ignore
+        optimizer = AdamW(self.parameters(), lr=self.hparams.lr)  # type: ignore
         scheduler = {
-            "scheduler": ReduceLROnPlateau(optimizer, mode="max", patience=3, verbose=True),
-            "monitor": "v_BinaryMatthewsCorrCoef",  # TODO: Change monitor
+            "scheduler": ReduceLROnPlateau(optimizer, mode="min", patience=3, verbose=True),
+            "monitor": "v_loss",  # TODO: Change monitor
         }
         return [optimizer], [scheduler]
 

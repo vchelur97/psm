@@ -222,7 +222,7 @@ class PSMModel(torch.nn.Module):
             "--hidden-sizes",
             nargs="+",
             type=int,
-            default=[1024, 256, 32],
+            default=[512, 128, 32],
             help="The size of the feedforward layers. Default: %(default)s",
         )
         return parser

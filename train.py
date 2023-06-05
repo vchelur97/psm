@@ -22,13 +22,13 @@ def main(hparams):
     callbacks = [
         ModelSummary(),
         ModelCheckpoint(
-            monitor="v_BinaryMatthewsCorrCoef",
+            monitor="v_loss",
             verbose=True,
             save_top_k=3,
-            mode="max",
+            mode="min",
             filename="{epoch:d}-{v_loss:.3f}-{v_BinaryMatthewsCorrCoef:.3f}-{v_BinaryAccuracy:.3f}-{v_BinaryF1Score:.3f}",
         ),
-        StochasticWeightAveraging(hparams.lr),
+        # StochasticWeightAveraging(hparams.lr),
     ]
     if hparams.enable_progress_bar:
         callbacks.append(RichProgressBar(refresh_rate=2))
