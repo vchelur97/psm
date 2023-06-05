@@ -12,7 +12,7 @@ SMOOTH = 1e-6
 plt.rcParams.update({"font.size": 18})
 
 
-def confusion_matrix_figure(cm, class_names):
+def confusion_matrix_figure(cm, class_names=["False", "True"]):
     """
     Returns a matplotlib figure containing the plotted confusion matrix.
     Args:

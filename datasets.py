@@ -123,6 +123,16 @@ class MSV000083508(Dataset):
         data = {
             "feature": np.array(discretized_spec).astype(np.float32),
             "label": label,
+            "meta": {
+                "mzml": mzml,
+                "scan_num": scan_num,
+                "peptide": self.annotations_info[mzml][scan_num]["peptides"][idx],
+                "charge": self.annotations_info[mzml][scan_num]["charges"][idx],
+                "mz": self.annotations_info[mzml][scan_num]["mz_arr"],
+                "intensity": self.annotations_info[mzml][scan_num]["intensity_arr"],
+                "annotations": self.annotations_info[mzml][scan_num]["annotations_arr"][idx],
+                "spec_evalue": self.annotations_info[mzml][scan_num]["spec_evalue"][idx],
+            }
         }
         return data
 
