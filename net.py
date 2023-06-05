@@ -58,8 +58,8 @@ class Net(pl.LightningModule):
         self.model = PSMModel(hparams, input_size)
         # TODO: Change loss function
         # if hparams.loss == "focal":
-        self.loss_func = weighted_focal_loss
-        # self.loss_func = weighted_bce_loss
+        # self.loss_func = weighted_focal_loss
+        self.loss_func = weighted_bce_loss
         # else:
         self.outputs = []
 

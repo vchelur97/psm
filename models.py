@@ -74,7 +74,7 @@ class MakeResNet(torch.nn.Module):
             bias=False,
         )
         self.bn1 = norm_layer(self.start_planes)
-        self.relu = torch.nn.ReLU()
+        self.relu = torch.nn.PReLU()
         self.depth = len(hidden_sizes)
         # self.maxpool = torch.nn.MaxPool1d(kernel_size=3, stride=1, padding=1)
         self.layers = torch.nn.ModuleList([])
@@ -83,7 +83,7 @@ class MakeResNet(torch.nn.Module):
 
         for m in self.modules():
             if isinstance(m, torch.nn.Conv1d):
-                torch.nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
+                torch.nn.init.kaiming_normal_(m.weight, mode="fan_out")
             elif isinstance(m, (torch.nn.BatchNorm1d, torch.nn.GroupNorm)):
                 torch.nn.init.constant_(m.weight, 1)
                 torch.nn.init.constant_(m.bias, 0)
@@ -133,14 +133,14 @@ class MakeResNet(torch.nn.Module):
             "--hidden-sizes",
             nargs="+",
             type=int,
-            default=[512, 64],
+            default=[512, 128],
             help="The size of the 1-D convolutional layers. Default: %(default)s",
         )
         parser.add_argument(
             "--kernel-sizes",
             nargs="+",
             type=int,
-            default=[3, 3],
+            default=[5, 5],
             help="Kernel sizes of the 2 convolutional layers of the basic block. Default: %(default)s",
         )
         return parser
@@ -153,7 +153,7 @@ class Detector(torch.nn.Module):
         layers = []
         for unit in hparams.detector_units:
             layers.append(torch.nn.Linear(input_size, unit))
-            layers.append(torch.nn.LeakyReLU(0.2, True))
+            layers.append(torch.nn.PReLU())
             layers.append(torch.nn.Dropout(hparams.dropout))
             input_size = unit
         self.detector = torch.nn.Sequential(*layers, torch.nn.Linear(input_size, 1))
@@ -170,62 +170,62 @@ class Detector(torch.nn.Module):
             metavar="UNIT",
             nargs="+",
             type=int,
-            default=[8],
+            default=[32],
             help="The number of units in each layer of the detector. Default: %(default)s",
         )
+        return parser
+
+
+class PSMModel(torch.nn.Module):
+    def __init__(self, hparams, input_size):
+        super().__init__()
+        assert len(hparams.layers) == len(hparams.hidden_sizes)
+        self.input_size = input_size
+        self.resnet_layer = MakeResNet(
+            hparams.layers, hparams.kernel_sizes, self.input_size, hparams.hidden_sizes
+        )
+        self.detector = Detector(hparams, hparams.hidden_sizes[-1])
+
+    def forward(self, X, **kwargs):
+        # [Batch, input_size] -> [Batch, hidden_sizes[-1]]
+        out = self.resnet_layer(X.unsqueeze(2))
+        # [Batch, hidden_sizes[-1]] -> [Batch]
+        out = self.detector(out.squeeze(2))
+        return out
+
+    @staticmethod
+    def add_class_specific_args(parser):
+        parser = MakeResNet.add_class_specific_args(parser)
+        parser = Detector.add_class_specific_args(parser)
         return parser
 
 
 # class PSMModel(torch.nn.Module):
 #     def __init__(self, hparams, input_size):
 #         super().__init__()
-#         assert len(hparams.layers) == len(hparams.hidden_sizes)
 #         self.input_size = input_size
-#         self.resnet_layer = MakeResNet(
-#             hparams.layers, hparams.kernel_sizes, self.input_size, hparams.hidden_sizes
-#         )
-#         self.detector = Detector(hparams, hparams.hidden_sizes[-1])
+#         layers = []
+#         for size in hparams.hidden_sizes:
+#             layers += [torch.nn.Linear(input_size, size)]
+#             layers += [torch.nn.PReLU()]
+#             layers += [torch.nn.Dropout(hparams.dropout)]
+#             input_size = size
+#         layers += [torch.nn.Linear(input_size, 1)]
+#         self.model = torch.nn.Sequential(*layers)
 
-#     def forward(self, X, **kwargs):
-#         # [Batch, input_size] -> [Batch, hidden_sizes[-1]]
-#         out = self.resnet_layer(X.unsqueeze(2))
-#         # [Batch, hidden_sizes[-1]] -> [Batch]
-#         out = self.detector(out.squeeze(2))
-#         return out
+#     def forward(self, x):
+#         return self.model(x).squeeze(1)
 
 #     @staticmethod
 #     def add_class_specific_args(parser):
-#         parser = MakeResNet.add_class_specific_args(parser)
-#         parser = Detector.add_class_specific_args(parser)
+#         parser.add_argument(
+#             "--hidden-sizes",
+#             nargs="+",
+#             type=int,
+#             default=[512, 128, 32],
+#             help="The size of the feedforward layers. Default: %(default)s",
+#         )
 #         return parser
-
-
-class PSMModel(torch.nn.Module):
-    def __init__(self, hparams, input_size):
-        super().__init__()
-        self.input_size = input_size
-        layers = []
-        for size in hparams.hidden_sizes:
-            layers += [torch.nn.Linear(input_size, size)]
-            layers += [torch.nn.PReLU()]
-            layers += [torch.nn.Dropout(hparams.dropout)]
-            input_size = size
-        layers += [torch.nn.Linear(input_size, 1)]
-        self.model = torch.nn.Sequential(*layers)
-
-    def forward(self, x):
-        return self.model(x).squeeze(1)
-
-    @staticmethod
-    def add_class_specific_args(parser):
-        parser.add_argument(
-            "--hidden-sizes",
-            nargs="+",
-            type=int,
-            default=[512, 128, 32],
-            help="The size of the feedforward layers. Default: %(default)s",
-        )
-        return parser
 
 
 # class PSMModel(torch.nn.Module):
