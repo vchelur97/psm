@@ -126,10 +126,12 @@ class MSV000083508(Dataset):
             "meta": {
                 "mzml": mzml,
                 "scan_num": scan_num,
-                "peptide": self.annotations_info[mzml][scan_num]["peptides"][idx],
-                "charge": self.annotations_info[mzml][scan_num]["charges"][idx],
+                "usi": self.annotations_info[mzml][scan_num]["usi"],
+                "charge": self.annotations_info[mzml][scan_num]["charge"],
                 "mz": self.annotations_info[mzml][scan_num]["mz_arr"],
                 "intensity": self.annotations_info[mzml][scan_num]["intensity_arr"],
+                "peptide": self.annotations_info[mzml][scan_num]["peptides"][idx],
+                "protein": self.annotations_info[mzml][scan_num]["proteins"][idx],
                 "annotations": self.annotations_info[mzml][scan_num]["annotations_arr"][idx],
                 "spec_evalue": self.annotations_info[mzml][scan_num]["spec_evalue"][idx],
             }
